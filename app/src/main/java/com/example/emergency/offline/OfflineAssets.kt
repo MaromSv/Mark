@@ -164,7 +164,7 @@ object OfflineAssets {
 
     /**
      * Removes leftover NL-specific files from previous app versions
-     * (`filesDir/tiles/nl.mbtiles`, `filesDir/brouter/segments/*.rd5`).
+     * (`filesDir/tiles/nl.mbtiles`, `filesDir/brouter/segments/<rd5 files>`).
      * Together those total ~470 MB on disk on devices that ran v1/v2 of
      * the staging code. Best-effort: any file that resists deletion just
      * stays - it's wasted bytes, not a correctness bug.

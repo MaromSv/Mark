@@ -12,7 +12,7 @@ import java.io.File
  * ```
  * filesDir/regions/<id>/
  *   tiles.mbtiles      - vector basemap, served by VectorTileServer
- *   routing/*.rd5      - BRouter graph segments
+ *   routing/<rd5>      - BRouter graph segments (one .rd5 per 5 deg tile)
  *   pois.geojson       - emergency POIs in this region
  *   manifest.json      - PackManifest (per-file sha256, see Manifest.kt)
  * ```
