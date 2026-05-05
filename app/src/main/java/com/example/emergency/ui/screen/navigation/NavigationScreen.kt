@@ -92,18 +92,18 @@ import kotlinx.coroutines.flow.callbackFlow
 private const val TAG = "NavigationScreen"
 
 /**
- * Active navigation experience (plan §8 step 7.5). Hosts a MapLibre view
+ * Active navigation experience (plan section 8 step 7.5). Hosts a MapLibre view
  * with the route polyline + a snapping user-puck, plus overlays for the
  * maneuver banner, ETA, off-route banner, and a recenter button.
  *
- * TTS is intentionally not wired here — per the user's instructions on
+ * TTS is intentionally not wired here - per the user's instructions on
  * 2026-05-02. The [com.example.emergency.offline.navigation.ManeuverScheduler]
- * still drives the visual banner cadence (e.g. swap from "In 200 m, …"
+ * still drives the visual banner cadence (e.g. swap from "In 200 m, ..."
  * to "Turn now") so the user experience is the Google-Maps shape, just
  * silent.
  *
  * GPS subscription uses FusedLocationProviderClient at PRIORITY_HIGH_ACCURACY,
- * 1-second updates. The screen owns the subscription lifecycle — entering
+ * 1-second updates. The screen owns the subscription lifecycle - entering
  * the screen kicks it off, leaving stops it cleanly.
  */
 @Composable
@@ -119,7 +119,7 @@ fun NavigationScreen(
         Mapbox.setConnected(true)
     }
 
-    // The engine is per-screen — when the user backs out, the next
+    // The engine is per-screen - when the user backs out, the next
     // navigation session starts fresh. Re-keying on initialRoute means
     // a freshly-rerouted polyline kicks off a new engine if the caller
     // re-enters this composable with a different route.
@@ -128,12 +128,12 @@ fun NavigationScreen(
     }
     val state by engine.state.collectAsState()
 
-    // Auto-start: jump straight from Preview → Navigating when the screen
+    // Auto-start: jump straight from Preview -> Navigating when the screen
     // mounts. The Preview state was the route-card on the InteractiveMap;
     // by the time the user is here, they already saw it.
     LaunchedEffect(engine) { engine.start() }
 
-    // Live GPS feed → engine ticks. requestLocationUpdates is gated on
+    // Live GPS feed -> engine ticks. requestLocationUpdates is gated on
     // ACCESS_FINE_LOCATION which the host activity already requested at
     // first launch (see AppNavHost.locationPermissionLauncher).
     LaunchedEffect(engine, context) {
@@ -146,7 +146,7 @@ fun NavigationScreen(
         }
     }
 
-    // Offline tile + style plumbing — same skeleton/fallback pattern as
+    // Offline tile + style plumbing - same skeleton/fallback pattern as
     // InteractiveMap. Navigation needs the basemap to make any sense.
     val bootstrapStatus by OfflineBootstrap.state.collectAsState()
     val offlinePaths: OfflineAssets.Paths? =
@@ -190,7 +190,7 @@ fun NavigationScreen(
         }
     }
 
-    // Map sources — once style is ready we wire the route + user-puck.
+    // Map sources - once style is ready we wire the route + user-puck.
     var mapboxMap by remember { mutableStateOf<MapboxMap?>(null) }
     var routeSource by remember { mutableStateOf<GeoJsonSource?>(null) }
     var userSource by remember { mutableStateOf<GeoJsonSource?>(null) }
@@ -211,7 +211,7 @@ fun NavigationScreen(
                 userSource = addUserLayer(style)
             }
             map.addOnCameraMoveStartedListener { reason ->
-                // 1 = USER_GESTURE — signals we should show the recenter
+                // 1 = USER_GESTURE - signals we should show the recenter
                 // affordance; programmatic camera moves keep follow-mode.
                 if (reason == 1) userPanned = true
             }
@@ -234,7 +234,7 @@ fun NavigationScreen(
         src.setGeoJson(LineString.fromLngLats(pts))
     }
 
-    // Camera follow — applied each tick unless the user has panned.
+    // Camera follow - applied each tick unless the user has panned.
     LaunchedEffect(mapboxMap, state, userPanned) {
         val map = mapboxMap ?: return@LaunchedEffect
         if (userPanned) return@LaunchedEffect
@@ -254,7 +254,7 @@ fun NavigationScreen(
         )
     }
 
-    // ─── UI ──────────────────────────────────────────────────────────
+    // --- UI ----------------------------------------------------------
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -323,7 +323,7 @@ fun NavigationScreen(
     }
 }
 
-// ─── Composables ────────────────────────────────────────────────────────────
+// --- Composables ------------------------------------------------------------
 
 @Composable
 private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier) {
@@ -336,7 +336,7 @@ private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier
         ?.let { state.route.steps.getOrNull(it) }
     val text = when {
         state is NavigationState.Arrived -> "You have arrived"
-        state is NavigationState.Preview -> "Loading route…"
+        state is NavigationState.Preview -> "Loading route..."
         step == null -> "Follow the route"
         else -> StepFormatter.formatStep(
             step = step,
@@ -362,10 +362,10 @@ private fun OffRouteBanner(state: NavigationState) {
     val colors = EmergencyTheme.colors
     val typography = EmergencyTheme.typography
     val pair: Pair<String, Boolean>? = when (state) {
-        is NavigationState.Rerouting -> "Off route — recalculating…" to false
+        is NavigationState.Rerouting -> "Off route - recalculating..." to false
         is NavigationState.RerouteFailed -> "Off route, can't recalculate: ${state.reason}" to true
         is NavigationState.Navigating -> state.offRouteEvent?.let {
-            "Off route — ${it.deviationM.toInt()} m off" to false
+            "Off route - ${it.deviationM.toInt()} m off" to false
         }
         else -> null
     }
@@ -413,8 +413,8 @@ private fun EtaCard(state: NavigationState, modifier: Modifier = Modifier) {
     val remainingEtaMin = (etaMinutesAtStart * ratio).toInt()
     val titleText = when {
         arrived -> "Arrived"
-        rerouting != null -> "Recalculating… · $remainingLabel left"
-        else -> "${remainingEtaMin} min · $remainingLabel left"
+        rerouting != null -> "Recalculating...  -  $remainingLabel left"
+        else -> "${remainingEtaMin} min  -  $remainingLabel left"
     }
 
     Box(
@@ -433,7 +433,7 @@ private fun EtaCard(state: NavigationState, modifier: Modifier = Modifier) {
             if (!arrived) {
                 Spacer(Modifier.size(2.dp))
                 Text(
-                    text = "Total ${if (total >= 1000) "%.1f km".format(total / 1000) else "%.0f m".format(total)} · " +
+                    text = "Total ${if (total >= 1000) "%.1f km".format(total / 1000) else "%.0f m".format(total)}  -  " +
                         "${state.route.steps.size} step${if (state.route.steps.size == 1) "" else "s"}",
                     style = typography.helper.copy(fontSize = 12.sp),
                     color = colors.textDim,
@@ -463,7 +463,7 @@ private fun RecenterButton(onClick: () -> Unit) {
     }
 }
 
-// ─── MapLibre helpers ───────────────────────────────────────────────────────
+// --- MapLibre helpers -------------------------------------------------------
 
 private fun addRouteLayer(style: Style, polyline: List<LatLng>): GeoJsonSource {
     val src = GeoJsonSource("nav-route-source")
@@ -518,12 +518,12 @@ private const val NAV_FALLBACK_STYLE = """
 }
 """
 
-// ─── GPS Flow ───────────────────────────────────────────────────────────────
+// --- GPS Flow ---------------------------------------------------------------
 
 /**
  * High-accuracy 1-second location updates as a Flow. Honours the
  * existing ACCESS_FINE_LOCATION grant (host activity requested it on
- * first launch); silently completes if the permission is missing — the
+ * first launch); silently completes if the permission is missing - the
  * banner / ETA stay on the initial values.
  */
 @SuppressLint("MissingPermission")
@@ -532,7 +532,7 @@ private fun locationFlow(context: Context): Flow<Location> = callbackFlow {
         context, Manifest.permission.ACCESS_FINE_LOCATION,
     ) == PackageManager.PERMISSION_GRANTED
     if (!granted) {
-        Log.w(TAG, "ACCESS_FINE_LOCATION not granted — nav will not tick")
+        Log.w(TAG, "ACCESS_FINE_LOCATION not granted - nav will not tick")
         close()
         return@callbackFlow
     }

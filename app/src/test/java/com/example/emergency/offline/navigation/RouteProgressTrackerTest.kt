@@ -11,7 +11,7 @@ class RouteProgressTrackerTest {
 
     /**
      * Build a polyline of three points spaced ~111 m apart in latitude
-     * (1 minute of arc ~= 1.852 km, so 0.001° ~= 111 m). Total length
+     * (1 minute of arc ~= 1.852 km, so 0.001 deg ~= 111 m). Total length
      * ~222 m.
      */
     private val polyline = listOf(
@@ -35,14 +35,14 @@ class RouteProgressTrackerTest {
         assertEquals(0, p.snappedSegmentIndex)
         assertTrue("deviation should be near zero, was ${p.deviationMeters}", p.deviationMeters < 1.0)
         // Halfway through first segment + full second segment remaining.
-        assertTrue("traveled ≈ 55 m, was ${p.traveledMeters}", p.traveledMeters in 50.0..60.0)
-        assertTrue("remaining ≈ 167 m, was ${p.remainingMeters}", p.remainingMeters in 160.0..175.0)
+        assertTrue("traveled ~= 55 m, was ${p.traveledMeters}", p.traveledMeters in 50.0..60.0)
+        assertTrue("remaining ~= 167 m, was ${p.remainingMeters}", p.remainingMeters in 160.0..175.0)
     }
 
     @Test
     fun reportsPerpendicularDeviation() {
-        // Same midpoint but offset 50m east-ish. 0.0007° lon at lat 52
-        // ≈ 48 m of east shift.
+        // Same midpoint but offset 50m east-ish. 0.0007 deg lon at lat 52
+        // ~= 48 m of east shift.
         val offRoute = LatLng(52.0005, 5.0007)
         val p = RouteProgressTracker.snap(polyline, emptyList(), offRoute)
         assertTrue(
@@ -53,7 +53,7 @@ class RouteProgressTrackerTest {
 
     @Test
     fun snapsToNearestSegmentWhenPastTheEnd() {
-        // Way past the end — should snap to the last node.
+        // Way past the end - should snap to the last node.
         val past = LatLng(52.005, 5.0)
         val p = RouteProgressTracker.snap(polyline, emptyList(), past)
         assertEquals(1, p.snappedSegmentIndex) // last segment
@@ -70,7 +70,7 @@ class RouteProgressTrackerTest {
     @Test
     fun currentStepIndexAdvancesPastReachedManeuvers() {
         val steps = listOf(step(1), step(2))
-        // Just before step 1 — currentStep should be index 0 (first upcoming).
+        // Just before step 1 - currentStep should be index 0 (first upcoming).
         val before = LatLng(52.0009, 5.000)
         val pBefore = RouteProgressTracker.snap(polyline, steps, before)
         assertEquals(0, pBefore.currentStepIndex)
@@ -79,7 +79,7 @@ class RouteProgressTrackerTest {
             pBefore.distanceToNextStepMeters in 0.0..15.0,
         )
 
-        // Past step 1, before step 2 → currentStep advances to 1.
+        // Past step 1, before step 2 -> currentStep advances to 1.
         val between = LatLng(52.0015, 5.000)
         val pBetween = RouteProgressTracker.snap(polyline, steps, between)
         assertEquals(1, pBetween.currentStepIndex)

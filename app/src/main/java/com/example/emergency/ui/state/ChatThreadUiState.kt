@@ -7,7 +7,7 @@ data class ToolCallInfo(
     val status: String, // "calling", "success", "error"
     /** Truncated to ~200 chars for display in the chat bubble. */
     val result: String = "",
-    /** Full untruncated tool data — used by chat→map handoffs that need to
+    /** Full untruncated tool data - used by chat->map handoffs that need to
      *  parse JSON (find_nearest, route_to). Empty for tools that don't
      *  carry structured data. */
     val rawResult: String = "",

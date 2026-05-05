@@ -4,17 +4,17 @@ import java.io.File
 
 /**
  * A region pack that has been downloaded, verified and installed on this
- * device. Plain data — the source of truth for "what is installed" lives
- * in [com.example.emergency.offline.pack.RegionStore] (Room DB, plan §6).
+ * device. Plain data - the source of truth for "what is installed" lives
+ * in [com.example.emergency.offline.pack.RegionStore] (Room DB, plan section 6).
  *
- * Path layout under [Context.getFilesDir] (plan §3):
+ * Path layout under [Context.getFilesDir] (plan section 3):
  *
  * ```
  * filesDir/regions/<id>/
- *   tiles.mbtiles      — vector basemap, served by VectorTileServer
- *   routing/*.rd5      — BRouter graph segments
- *   pois.geojson       — emergency POIs in this region
- *   manifest.json      — PackManifest (per-file sha256, see Manifest.kt)
+ *   tiles.mbtiles      - vector basemap, served by VectorTileServer
+ *   routing/*.rd5      - BRouter graph segments
+ *   pois.geojson       - emergency POIs in this region
+ *   manifest.json      - PackManifest (per-file sha256, see Manifest.kt)
  * ```
  */
 data class RegionPack(

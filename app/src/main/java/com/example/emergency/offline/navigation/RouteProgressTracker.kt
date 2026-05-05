@@ -12,14 +12,14 @@ import kotlin.math.sqrt
 
 /**
  * Snaps a GPS fix to the active route's polyline and computes the live
- * routing-state numbers the navigation UI reads (plan §8 step 7.5).
+ * routing-state numbers the navigation UI reads (plan section 8 step 7.5).
  *
- * Pure math, no Android imports — exhaustively unit-testable. The actual
+ * Pure math, no Android imports - exhaustively unit-testable. The actual
  * GPS subscription lives in the UI layer; the engine just feeds each new
  * fix in through [snap].
  *
  * One [Progress] snapshot per call. The tracker keeps no internal state
- * between calls — re-snapping the same fix yields the same answer, which
+ * between calls - re-snapping the same fix yields the same answer, which
  * makes the engine's tick loop trivially idempotent.
  *
  * Coordinate frame: WGS84 in degrees. Distances are computed in metres
@@ -65,7 +65,7 @@ object RouteProgressTracker {
     ): Progress {
         require(polyline.size >= 2) { "polyline needs at least two points" }
 
-        // ─── Find nearest segment ──────────────────────────────────────
+        // --- Find nearest segment --------------------------------------
         var bestSegment = 0
         var bestDist = Double.POSITIVE_INFINITY
         var bestSnap = polyline[0]
@@ -81,20 +81,20 @@ object RouteProgressTracker {
             }
         }
 
-        // ─── Distance traveled = sum(prefix segments) + partial of current ───
+        // --- Distance traveled = sum(prefix segments) + partial of current ---
         var traveled = 0.0
         for (i in 0 until bestSegment) {
             traveled += haversineMeters(polyline[i], polyline[i + 1])
         }
         traveled += haversineMeters(polyline[bestSegment], bestSnap)
 
-        // ─── Remaining = current partial + sum(suffix segments) ─────────
+        // --- Remaining = current partial + sum(suffix segments) ---------
         var remaining = haversineMeters(bestSnap, polyline[bestSegment + 1])
         for (i in bestSegment + 1 until polyline.lastIndex) {
             remaining += haversineMeters(polyline[i], polyline[i + 1])
         }
 
-        // ─── Current step + distance to it ──────────────────────────────
+        // --- Current step + distance to it ------------------------------
         val (currentStep, distToStep) = nextStep(steps, polyline, bestSegment, bestSnap)
 
         val arrived = remaining <= arrivedThresholdM
@@ -129,7 +129,7 @@ object RouteProgressTracker {
         //   * + any whole intermediate segments
         //   * + partial into the segment ending at step.indexInPolyline
         if (step.indexInPolyline <= snappedSegment) {
-            // Past the step already — report 0.
+            // Past the step already - report 0.
             return stepIdx to 0.0
         }
         var d = haversineMeters(snappedPoint, polyline[snappedSegment + 1])
@@ -141,9 +141,9 @@ object RouteProgressTracker {
     }
 
     /**
-     * Projects [point] onto the great-circle segment [a]–[b]. Returns
+     * Projects [point] onto the great-circle segment [a]-[b]. Returns
      * (snappedPoint, t) where `t` is the parametric position [0, 1] from
-     * `a` (0) to `b` (1). Flat-earth approximation — fine for the
+     * `a` (0) to `b` (1). Flat-earth approximation - fine for the
      * sub-kilometre segments BRouter emits.
      */
     private fun projectOnSegment(point: LatLng, a: LatLng, b: LatLng): Pair<LatLng, Double> {

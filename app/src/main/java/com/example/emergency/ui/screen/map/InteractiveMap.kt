@@ -209,7 +209,7 @@ fun InteractiveMap(
 ) {
     val context = LocalContext.current
 
-    // Idempotent — MapLibre guards internally against re-entry. Keeping it
+    // Idempotent - MapLibre guards internally against re-entry. Keeping it
     // here means callers don't need to remember to bootstrap from Application
     // or MainActivity.
     remember {
@@ -217,7 +217,7 @@ fun InteractiveMap(
         Mapbox.setConnected(true)
     }
 
-    // Region pipeline (plan §6 / Step 6). RegionStore + CatalogProvider feed
+    // Region pipeline (plan section 6 / Step 6). RegionStore + CatalogProvider feed
     // the multi-pack OfflineRouter so we can pre-flight routes against the
     // installed-pack union and return typed outcomes for honest errors.
     val regionStore = remember { RegionStore.get(context) }
@@ -248,7 +248,7 @@ fun InteractiveMap(
     // [com.example.emergency.EmergencyApp], so by the time the map screen
     // mounts the copy is usually already done. We observe the shared state
     // here instead of starting the work ourselves. While staging is still
-    // running, the map UI stays interactive — only the tile server / route
+    // running, the map UI stays interactive - only the tile server / route
     // engine wait for paths to become available.
     val bootstrapStatus by OfflineBootstrap.state.collectAsState()
     val offlinePaths: OfflineAssets.Paths? =
@@ -258,7 +258,7 @@ fun InteractiveMap(
     // Tile server lives only while the composable is on screen. Re-keying on
     // [offlinePaths] means it spins up the moment staging completes, even if
     // the user was already on the map screen. The server is only constructed
-    // when the bundled skeleton mbtiles actually exists on disk — the
+    // when the bundled skeleton mbtiles actually exists on disk - the
     // skeleton is opt-in (multi-hour build, see scripts/build-pack/skeleton-build.sh)
     // so during dev iteration the map still renders, just without basemap
     // tiles (style.json's background color shows through).
@@ -286,11 +286,11 @@ fun InteractiveMap(
             userLocation = if (it.isInNL()) it else DAM_SQUARE
             Log.d(
                 TAG,
-                "GPS fix ${it.latitude},${it.longitude} → using " +
+                "GPS fix ${it.latitude},${it.longitude} -> using " +
                     "${userLocation.latitude},${userLocation.longitude}" +
-                    if (!it.isInNL()) " (out of NL — clamped to Dam Square)" else "",
+                    if (!it.isInNL()) " (out of NL - clamped to Dam Square)" else "",
             )
-        } ?: Log.d(TAG, "No GPS — falling back to Dam Square")
+        } ?: Log.d(TAG, "No GPS - falling back to Dam Square")
     }
 
     val mapView = remember {
@@ -368,13 +368,13 @@ fun InteractiveMap(
 
     // Animate the map to the current GPS fix once both the map is ready and
     // a user location has resolved. The PDOK basemap only covers NL, so if
-    // the GPS reports somewhere else we stay on Dam Square — otherwise the
+    // the GPS reports somewhere else we stay on Dam Square - otherwise the
     // user sees a black void of un-tiled ocean.
     LaunchedEffect(mapboxMap, userLocation, initialDestination) {
         val map = mapboxMap ?: return@LaunchedEffect
         val target = if (userLocation.isInNL()) userLocation else DAM_SQUARE
         if (target !== userLocation) {
-            Log.d(TAG, "GPS ${userLocation.latitude},${userLocation.longitude} outside NL — using Dam Square")
+            Log.d(TAG, "GPS ${userLocation.latitude},${userLocation.longitude} outside NL - using Dam Square")
         }
         val update = if (initialDestination != null) {
             val dest = LatLng(initialDestination.lat, initialDestination.lon)
@@ -395,7 +395,7 @@ fun InteractiveMap(
     }
 
     // Mirror the selected destination into a dedicated source so the route
-    // endpoint always shows a marker — including LLM-supplied destinations
+    // endpoint always shows a marker - including LLM-supplied destinations
     // that aren't part of the bundled POI dataset.
     LaunchedEffect(selectedDestSource, selectedPoi) {
         val src = selectedDestSource ?: return@LaunchedEffect
@@ -427,7 +427,7 @@ fun InteractiveMap(
             return@LaunchedEffect
         }
         val paths = offlinePaths ?: run {
-            // Staging not done yet — UI shows "Calculating route…" via
+            // Staging not done yet - UI shows "Calculating route..." via
             // [routeLoading] so the user knows we'll route once data lands.
             routeLoading = true
             return@LaunchedEffect
@@ -496,7 +496,7 @@ fun InteractiveMap(
         }
 
         // Small non-blocking progress pill, only visible while the bootstrap
-        // is mid-copy (or has errored out). The map stays fully interactive —
+        // is mid-copy (or has errored out). The map stays fully interactive -
         // mode selector, GPS dot, POI taps all work; tiles just render once
         // the local server comes up.
         StagingPill(
@@ -552,7 +552,7 @@ private fun StagingPill(
                         if (it.total > 0) (it.done * 100 / it.total) else 0
                     } ?: 0
                     Text(
-                        "Preparing offline maps… $pct%",
+                        "Preparing offline maps... $pct%",
                         color = Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
@@ -677,13 +677,13 @@ private fun RouteInfoCard(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Calculating route…",
+                            text = "Calculating route...",
                             style = typography.helper,
                             color = colors.textDim,
                         )
                     }
                     route != null -> Text(
-                        text = "${formatDistance(route.distanceM)}  ·  ${formatDuration(route.durationS)} ${mode.label.lowercase()}",
+                        text = "${formatDistance(route.distanceM)}   -   ${formatDuration(route.durationS)} ${mode.label.lowercase()}",
                         style = typography.helper,
                         color = colors.textDim,
                     )
@@ -756,11 +756,11 @@ private fun formatDuration(seconds: Double): String {
     return if (mins < 60) "$mins min" else "${mins / 60} h ${mins % 60} min"
 }
 
-// ─── Map layers ──────────────────────────────────────────────────────────────
+// --- Map layers --------------------------------------------------------------
 
 // Adds the POI source + layers to the style. POIs are loaded from
 // app/src/main/assets/pois-nl.geojson and aggregated client-side via MapLibre
-// clustering — without that, rendering dense pins at low zoom would stutter.
+// clustering - without that, rendering dense pins at low zoom would stutter.
 private fun addPoiLayer(context: Context, style: Style) {
     POI_CATEGORIES.forEach { name ->
         val resId = context.resources.getIdentifier("ic_poi_$name", "drawable", context.packageName)
@@ -797,7 +797,7 @@ private fun addPoiLayer(context: Context, style: Style) {
                 Log.d(
                     TAG,
                     "Copying pois-nl.geojson from assets (cached=$cachedVersion, " +
-                        "current=$POI_BUNDLE_VERSION)…",
+                        "current=$POI_BUNDLE_VERSION)...",
                 )
                 context.assets.open("pois-nl.geojson").use { input ->
                     outFile.outputStream().use { output -> input.copyTo(output) }
@@ -931,7 +931,7 @@ private fun addUserLocationLayer(style: Style): GeoJsonSource {
 
 // Marker for the currently selected destination. Uses the same `category` icon
 // expression as the POI layer so the visual matches a tapped pin, but renders
-// from its own source — so destinations supplied via `initialDestination`
+// from its own source - so destinations supplied via `initialDestination`
 // (e.g. from the chat tool) are always visible, even when they aren't part of
 // the bundled POIs.
 private fun addSelectedDestinationLayer(style: Style): GeoJsonSource {
@@ -979,7 +979,7 @@ private fun drawableToBitmap(context: Context, resId: Int): Bitmap? {
     return bmp
 }
 
-// ─── GPS ─────────────────────────────────────────────────────────────────────
+// --- GPS ---------------------------------------------------------------------
 
 @SuppressLint("MissingPermission")
 internal suspend fun getUserLocation(context: Context): LatLng? {
@@ -997,7 +997,7 @@ internal suspend fun getUserLocation(context: Context): LatLng? {
     }
 }
 
-// ─── Offline basemap style ───────────────────────────────────────────────────
+// --- Offline basemap style ---------------------------------------------------
 
 // MapLibre 10.x doesn't ship an mbtiles:// scheme handler, so the offline
 // tile pack is served by [MbtilesServer] over loopback HTTP. The port is

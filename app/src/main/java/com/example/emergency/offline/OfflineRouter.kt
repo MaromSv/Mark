@@ -18,20 +18,20 @@ import java.nio.file.Files
 
 /**
  * Thin Kotlin wrapper around [btools.router.RoutingEngine] that produces a
- * route entirely from on-device data — no network involved. Replaces the
+ * route entirely from on-device data - no network involved. Replaces the
  * previous online call to brouter.de.
  *
  * Each call instantiates a fresh [RoutingEngine] (BRouter is not designed
- * to be reused across queries — it owns mutable caches keyed off the
+ * to be reused across queries - it owns mutable caches keyed off the
  * active request). The engine reads the routing graph from `.rd5` segment
- * files staged by per-region packs (plan §3 / §8 step 4).
+ * files staged by per-region packs (plan section 3 / section 8 step 4).
  *
- * **Multi-pack handling (plan §6).** BRouter's [RoutingEngine] takes a
+ * **Multi-pack handling (plan section 6).** BRouter's [RoutingEngine] takes a
  * single `segmentDir`. To union the segments of every installed pack we
- * maintain a hardlink farm under `filesDir/regions/_active/segments/` —
+ * maintain a hardlink farm under `filesDir/regions/_active/segments/` -
  * cheap (no byte copy), and rebuilt only when the installed-pack set
  * actually changes (hashed by sorted ids). Adjacent packs that ship the
- * same 5°×5° BRouter tile (e.g. NL and BE both contain `E0_N50.rd5`) are
+ * same 5 degx5 deg BRouter tile (e.g. NL and BE both contain `E0_N50.rd5`) are
  * deduplicated by filename; first-installed wins, which is fine because
  * BRouter segments at the same coordinates are byte-identical regardless
  * of which country pack ships them.
@@ -50,24 +50,24 @@ object OfflineRouter {
         val durationS: Double,
         /**
          * Turn-by-turn maneuvers extracted from BRouter's voice hints
-         * (plan §8 step 7). Empty when BRouter didn't emit any (e.g. a
+         * (plan section 8 step 7). Empty when BRouter didn't emit any (e.g. a
          * single-segment route) or when the parser couldn't read the
-         * jar's voice-hint shape — routing keeps working either way.
+         * jar's voice-hint shape - routing keeps working either way.
          */
         val steps: List<TurnStep> = emptyList(),
     )
 
     /**
-     * Routes [from] → [to] using the union of [installedPacks]'s segments.
+     * Routes [from] -> [to] using the union of [installedPacks]'s segments.
      * Pre-flights against pack bboxes and returns a typed [RouteOutcome] for
-     * every failure path — see plan §6 for the full case enumeration.
+     * every failure path - see plan section 6 for the full case enumeration.
      *
      * [catalog] is consulted only when the pre-flight fails, so the caller
      * can suggest the right pack(s) to install. Pass an empty list if no
      * suggestion is possible (e.g. no catalog loaded).
      *
      * [activeRoot] is the per-process scratch dir for the merged segments
-     * farm — typically `filesDir/regions/_active/`. Created on demand.
+     * farm - typically `filesDir/regions/_active/`. Created on demand.
      */
     suspend fun route(
         from: LatLng,
@@ -85,7 +85,7 @@ object OfflineRouter {
             )
         }
 
-        // ─── Pre-flight: are both endpoints inside the union of installed bboxes? ───
+        // --- Pre-flight: are both endpoints inside the union of installed bboxes? ---
         val uncovered = mutableListOf<RouteOutcome.Endpoint>()
         if (!RegionResolver.isCoveredByInstalled(installedPacks, from.latitude, from.longitude)) {
             uncovered += RouteOutcome.Endpoint.FROM
@@ -109,7 +109,7 @@ object OfflineRouter {
             )
         }
 
-        // ─── Build/refresh merged segments dir ────────────────────────────
+        // --- Build/refresh merged segments dir ----------------------------
         val segmentsDir = try {
             mergeSegments(installedPacks, activeRoot)
         } catch (t: Throwable) {
@@ -124,7 +124,7 @@ object OfflineRouter {
             )
         }
 
-        // ─── Run BRouter ──────────────────────────────────────────────────
+        // --- Run BRouter --------------------------------------------------
         try {
             // RoutingContext.localFunction is the absolute path to the .brf
             // profile. readGlobalConfig() also expects a global config file
@@ -136,7 +136,7 @@ object OfflineRouter {
                 // Mode 1 = "auto" / locus-style voice hints. Reflectively
                 // because older BRouter jars use the typo'd name
                 // `turnInstructionMode` while some forks expose `voicehints`
-                // — try both before giving up. Plan §8 step 7.
+                // - try both before giving up. Plan section 8 step 7.
                 setTurnInstructionMode(this, 1)
             }
 
@@ -152,7 +152,7 @@ object OfflineRouter {
                 /* waypoints    = */ waypoints,
                 /* routingCtx   = */ rc,
             ).apply {
-                // BRouter's typo, not ours — silences the chatty System.out
+                // BRouter's typo, not ours - silences the chatty System.out
                 // logging during routing.
                 quite = true
             }
@@ -192,7 +192,7 @@ object OfflineRouter {
         }
     }
 
-    // ─── Merged segments farm ────────────────────────────────────────────────
+    // --- Merged segments farm ------------------------------------------------
 
     /**
      * Snapshot of which packs the merged dir was last built from. Compared
@@ -243,7 +243,7 @@ object OfflineRouter {
                 linked++
             }
         }
-        Log.d(TAG, "Merged $linked .rd5 segments from ${ids.size} pack(s) → ${dest.absolutePath}")
+        Log.d(TAG, "Merged $linked .rd5 segments from ${ids.size} pack(s) -> ${dest.absolutePath}")
         activeSnapshot = ids
         activeDir = dest
         return dest
@@ -281,6 +281,6 @@ object OfflineRouter {
                 // try next
             }
         }
-        Log.w(TAG, "RoutingContext exposes no turnInstructionMode hook — turn-by-turn disabled")
+        Log.w(TAG, "RoutingContext exposes no turnInstructionMode hook - turn-by-turn disabled")
     }
 }

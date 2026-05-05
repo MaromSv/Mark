@@ -18,14 +18,14 @@ import org.junit.Test
 
 class RouteToolTest {
 
-    // ─── parseCoords ─────────────────────────────────────────────────────
+    // --- parseCoords -----------------------------------------------------
 
     @Test
     fun parseCoordsAcceptsPlainPair() {
         assertEquals(52.374 to 4.890, RouteTool.parseCoords("52.374,4.890"))
         assertEquals(52.374 to 4.890, RouteTool.parseCoords("52.374, 4.890"))
         assertEquals(-33.85 to 151.20, RouteTool.parseCoords("-33.85,151.20"))
-        // Tolerates wrapping parens — the LLM occasionally adds them.
+        // Tolerates wrapping parens - the LLM occasionally adds them.
         assertEquals(52.374 to 4.890, RouteTool.parseCoords("(52.374, 4.890)"))
     }
 
@@ -44,7 +44,7 @@ class RouteToolTest {
         assertNull(RouteTool.parseCoords("52..,4..,extra"))
     }
 
-    // ─── mapProfile ──────────────────────────────────────────────────────
+    // --- mapProfile ------------------------------------------------------
 
     @Test
     fun mapProfileAcceptsKnownAliases() {
@@ -58,7 +58,7 @@ class RouteToolTest {
         assertNull(RouteTool.mapProfile("teleport"))
     }
 
-    // ─── normalizeCategory ──────────────────────────────────────────────
+    // --- normalizeCategory ----------------------------------------------
 
     @Test
     fun normalizeCategoryHandlesAliasesAndCase() {
@@ -66,11 +66,11 @@ class RouteToolTest {
         assertEquals("hospital", RouteTool.normalizeCategory("emergency_room"))
         assertEquals("hospital", RouteTool.normalizeCategory("ER"))
         assertEquals("aed", RouteTool.normalizeCategory("defibrillator"))
-        assertEquals("water", RouteTool.normalizeCategory("drinking water"))    // space → underscore
+        assertEquals("water", RouteTool.normalizeCategory("drinking water"))    // space -> underscore
         assertNull(RouteTool.normalizeCategory("teleporter"))
     }
 
-    // ─── formatOutcome ──────────────────────────────────────────────────
+    // --- formatOutcome --------------------------------------------------
 
     private val dest = RouteTool.ResolvedDestination(
         name = "Anne Frank House",

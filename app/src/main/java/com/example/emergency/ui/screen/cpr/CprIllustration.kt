@@ -325,7 +325,7 @@ private fun DrawScope.drawHands(
         topLeft = Offset(center.x - innerRx, center.y - innerRy),
         size = Size(innerRx * 2, innerRy * 2),
     )
-    drawCanvasText("×", 140f * sx, 103f * sy, 12f, accent, bold = true, centered = true)
+    drawCanvasText("x", 140f * sx, 103f * sy, 12f, accent, bold = true, centered = true)
 
     // label leader line
     drawLine(
@@ -387,7 +387,7 @@ private fun DrawScope.drawRecovery(
     }
     drawPath(breath2, dim.copy(alpha = 0.6f), style = strokeOf(1.2f.dp.toPx()))
 
-    drawCanvasText("stable · monitor", 148f * sx, 40f * sy, 10f, dim, bold = false)
+    drawCanvasText("stable  -  monitor", 148f * sx, 40f * sy, 10f, dim, bold = false)
 }
 
 private fun DrawScope.drawRoundedRectStroke(

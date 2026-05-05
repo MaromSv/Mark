@@ -30,7 +30,7 @@ import java.net.URL
 import java.util.zip.GZIPInputStream
 
 /**
- * Downloads, verifies and installs region packs (plan §8 step 4).
+ * Downloads, verifies and installs region packs (plan section 8 step 4).
  *
  * One coroutine per active pack id, owned by a process-wide
  * [SupervisorJob]; UI binds to [state] and triggers work via [download] /
@@ -41,22 +41,22 @@ import java.util.zip.GZIPInputStream
  *
  * ```
  * Queued
- *   → Downloading(progress)        // GET <url>, Range: bytes=N- if .partial exists
- *   → Verifying                    // sha256(partial) == CatalogEntry.sha256
- *   → Installing                   // gunzip + untar into installing/, per-file sha256, rename
- *   → Installed                    // RegionStore.add(...) + delete partial
+ *   -> Downloading(progress)        // GET <url>, Range: bytes=N- if .partial exists
+ *   -> Verifying                    // sha256(partial) == CatalogEntry.sha256
+ *   -> Installing                   // gunzip + untar into installing/, per-file sha256, rename
+ *   -> Installed                    // RegionStore.add(...) + delete partial
  * ```
  *
- * **WorkManager is intentionally deferred** (plan §8 step 4). For Step 4's
+ * **WorkManager is intentionally deferred** (plan section 8 step 4). For Step 4's
  * scope (download + resume + verify + install + list + delete), a coroutine
- * tied to the application scope is enough — the user is staring at the
+ * tied to the application scope is enough - the user is staring at the
  * progress bar. WorkManager is the right answer once we want downloads to
  * survive process death (start the download, lock the screen, walk away);
  * dropping it in is a wrapper around [downloadInner], not a rewrite.
  *
  * **Resumability across process restarts** still works: the .partial file
  * lives on disk, so the next [download] call sees it and issues a `Range`
- * GET. We just don't restart automatically — the user has to tap again.
+ * GET. We just don't restart automatically - the user has to tap again.
  *
  * Disk layout this class touches:
  * ```
@@ -85,7 +85,7 @@ class PackDownloader private constructor(
         _state.value[id] ?: DownloadState.Idle
 
     /**
-     * Kicks off (or resumes) the download for [entry]. Idempotent — calling
+     * Kicks off (or resumes) the download for [entry]. Idempotent - calling
      * twice while already downloading is a no-op. Returns immediately;
      * progress is on [state].
      */
@@ -108,7 +108,7 @@ class PackDownloader private constructor(
             try {
                 downloadInner(entry)
             } catch (ce: CancellationException) {
-                // User cancelled — keep .partial on disk so a resume works.
+                // User cancelled - keep .partial on disk so a resume works.
                 Log.d(TAG, "${entry.id}: cancelled; .partial preserved for resume")
                 transition(entry.id, DownloadState.Paused("cancelled"))
                 throw ce
@@ -152,7 +152,7 @@ class PackDownloader private constructor(
         val installing = File(regionsRoot, "${entry.id}.installing")
         installing.deleteRecursively() // clean stale half-installs
 
-        // ─── DOWNLOAD ───────────────────────────────────────────────────
+        // --- DOWNLOAD ---------------------------------------------------
         transition(entry.id, DownloadState.Downloading(partial.takeIf { it.exists() }?.length() ?: 0L,
             entry.sizeBytes))
         val totalBytes = httpClient.fetchToFile(entry.url, partial) { done, total ->
@@ -162,7 +162,7 @@ class PackDownloader private constructor(
             throw IOException("downloaded $totalBytes bytes, catalog said ${entry.sizeBytes}")
         }
 
-        // ─── VERIFY TARBALL ─────────────────────────────────────────────
+        // --- VERIFY TARBALL ---------------------------------------------
         transition(entry.id, DownloadState.Verifying)
         val tarballResult = ChecksumVerifier.verifyTarball(partial, entry.sha256)
         if (tarballResult !is ChecksumVerifier.Result.Ok) {
@@ -170,7 +170,7 @@ class PackDownloader private constructor(
             throw IOException("tarball verify failed: $tarballResult")
         }
 
-        // ─── INSTALL (extract → per-file verify → atomic rename) ────────
+        // --- INSTALL (extract -> per-file verify -> atomic rename) --------
         transition(entry.id, DownloadState.Installing)
         installing.mkdirs()
         partial.inputStream().use { fileIn ->
@@ -191,12 +191,12 @@ class PackDownloader private constructor(
             throw IOException("per-file verify failed: $perFile")
         }
 
-        // ─── ATOMIC RENAME ─────────────────────────────────────────────
+        // --- ATOMIC RENAME ---------------------------------------------
         // Last cancellation gate before we mutate the on-disk pack tree.
         // Anything past this point must run to completion or leave the
         // installing/ dir behind for the next download to re-extract.
         currentCoroutineContext().ensureActive()
-        // Old version (if any) → temp suffix → renameFrom installing →
+        // Old version (if any) -> temp suffix -> renameFrom installing ->
         // delete the temp old. Two renames so a crash mid-swap leaves
         // *something* installed (either old or new) instead of nothing.
         val installed = RegionPack.rootFor(regionsRoot, entry.id)
@@ -207,12 +207,12 @@ class PackDownloader private constructor(
                 "couldn't move existing pack aside: $installed"
             }
             check(installing.renameTo(installed)) {
-                "couldn't promote new pack: $installing → $installed"
+                "couldn't promote new pack: $installing -> $installed"
             }
             previousBackup.deleteRecursively()
         } else {
             check(installing.renameTo(installed)) {
-                "couldn't promote new pack: $installing → $installed"
+                "couldn't promote new pack: $installing -> $installed"
             }
         }
         partial.delete()
@@ -238,10 +238,10 @@ class PackDownloader private constructor(
         val previous = stateOf(id)
         if (previous == next) return
         if (!isValidTransition(previous, next)) {
-            // Don't crash — log and apply anyway. Real-world cancel/resume
+            // Don't crash - log and apply anyway. Real-world cancel/resume
             // races can produce technically-illegal transitions and
             // crashing mid-install is worse than a noisy log.
-            Log.w(TAG, "$id: unexpected transition $previous → $next")
+            Log.w(TAG, "$id: unexpected transition $previous -> $next")
         }
         _state.value = _state.value.toMutableMap().also { it[id] = next }
     }
@@ -311,7 +311,7 @@ class PackDownloader private constructor(
 /**
  * Default [PackDownloader.HttpClient]. Issues a single GET with optional
  * `Range: bytes=N-` when [destFile] already holds N bytes; appends to the
- * existing file. Reads a fresh [HttpURLConnection] per call — Java's URL
+ * existing file. Reads a fresh [HttpURLConnection] per call - Java's URL
  * connection pooling handles connection reuse for us.
  */
 internal class HttpUrlConnectionClient : PackDownloader.HttpClient {
@@ -340,7 +340,7 @@ internal class HttpUrlConnectionClient : PackDownloader.HttpClient {
                 throw IOException("HTTP $code ${conn.responseMessage} for $url")
             }
             if (resumeFrom > 0 && !rangeHonoured) {
-                // Server ignored Range — start over, otherwise we'd
+                // Server ignored Range - start over, otherwise we'd
                 // duplicate the prefix in the partial file.
                 destFile.delete()
             }
@@ -375,7 +375,7 @@ internal class HttpUrlConnectionClient : PackDownloader.HttpClient {
         var sinceLastTick = 0L
         onProgress(done, expectedTotal)
         while (true) {
-            // Cooperative cancellation — throws CancellationException if the
+            // Cooperative cancellation - throws CancellationException if the
             // surrounding coroutine has been cancelled (PackDownloader.cancel).
             currentCoroutineContext().ensureActive()
             val n = input.read(buf)

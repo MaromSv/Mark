@@ -15,24 +15,24 @@ class StepFormatterTest {
             indexInPolyline = 0,
         )
 
-    // ─── formatDistance buckets ──────────────────────────────────────────────
+    // --- formatDistance buckets ----------------------------------------------
 
     @Test
     fun distanceBucketsRoundCorrectly() {
-        // <100m → 10m bucket
+        // <100m -> 10m bucket
         assertEquals("0 m", StepFormatter.formatDistance(0.0))
         assertEquals("50 m", StepFormatter.formatDistance(50.0))
         assertEquals("90 m", StepFormatter.formatDistance(99.9))
-        // <1000m → 50m bucket
+        // <1000m -> 50m bucket
         assertEquals("400 m", StepFormatter.formatDistance(420.0))
         assertEquals("950 m", StepFormatter.formatDistance(950.0))
-        // ≥1000m → 0.1km
+        // >=1000m -> 0.1km
         assertEquals("1.0 km", StepFormatter.formatDistance(1000.0))
         assertEquals("1.2 km", StepFormatter.formatDistance(1234.0))
         assertEquals("12.3 km", StepFormatter.formatDistance(12_345.0))
     }
 
-    // ─── per-command rendering ───────────────────────────────────────────────
+    // --- per-command rendering -----------------------------------------------
 
     @Test
     fun turnLeftWithStreetNameAndDistance() {
@@ -114,7 +114,7 @@ class StepFormatterTest {
         )
     }
 
-    // ─── formatAll over a synthetic route ────────────────────────────────────
+    // --- formatAll over a synthetic route ------------------------------------
 
     @Test
     fun formatAllChainsDistancesCorrectly() {

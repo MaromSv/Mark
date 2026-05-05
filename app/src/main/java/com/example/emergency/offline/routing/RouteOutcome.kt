@@ -4,24 +4,24 @@ import com.example.emergency.offline.OfflineRouter
 import com.example.emergency.offline.pack.CatalogEntry
 
 /**
- * Typed result of an offline routing attempt (plan §6, §8 step 6).
+ * Typed result of an offline routing attempt (plan section 6, section 8 step 6).
  *
  * Replaces the old `Result?` shape so the UI can render a *specific*
  * actionable message for every failure mode instead of a generic "Routing
- * failed". This is the user-visible cost of the offline guarantee — when
+ * failed". This is the user-visible cost of the offline guarantee - when
  * we can't honour a route, we say *why* and (when relevant) *what to do*.
  *
  * Cases:
- *   * [Success] — happy path, polyline + distance + duration ready to render.
- *   * [OutsideDownloadedRegion] — at least one endpoint sits outside the
+ *   * [Success] - happy path, polyline + distance + duration ready to render.
+ *   * [OutsideDownloadedRegion] - at least one endpoint sits outside the
  *     union of installed pack bboxes. [missingPacks] holds the catalog
  *     entries the user would need to install for the request to succeed,
  *     so the picker can offer a one-tap "Get Germany" button. May be empty
  *     if the catalog itself doesn't carry a pack covering the endpoint.
- *   * [NoRouteFound] — both endpoints are in covered regions but BRouter
+ *   * [NoRouteFound] - both endpoints are in covered regions but BRouter
  *     can't connect them (disconnected island, profile excludes everything,
  *     too-narrow corridor, etc.). [reason] echoes BRouter's `errorMessage`.
- *   * [GraphLoadFailed] — BRouter threw — corrupt `.rd5`, missing profile,
+ *   * [GraphLoadFailed] - BRouter threw - corrupt `.rd5`, missing profile,
  *     I/O error. [cause] is the original throwable for log forwarding.
  */
 sealed class RouteOutcome {
@@ -38,11 +38,11 @@ sealed class RouteOutcome {
 
     data class GraphLoadFailed(val cause: Throwable) : RouteOutcome()
 
-    /** Which endpoint was missing — UI uses this to phrase the banner. */
+    /** Which endpoint was missing - UI uses this to phrase the banner. */
     enum class Endpoint { FROM, TO }
 
     /**
-     * Short user-facing label. Layer-1 message only — the UI is free to
+     * Short user-facing label. Layer-1 message only - the UI is free to
      * augment with action buttons (e.g. "Open picker") based on the
      * concrete subtype.
      */

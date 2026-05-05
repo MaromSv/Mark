@@ -7,16 +7,16 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Camera math for the navigation follow-mode (plan §8 step 7.5).
+ * Camera math for the navigation follow-mode (plan section 8 step 7.5).
  *
- * Pure data — the actual `MapboxMap.cameraPosition` mutation lives in
+ * Pure data - the actual `MapboxMap.cameraPosition` mutation lives in
  * the UI layer. The controller turns "current snapped point + heading +
  * speed" into a [Frame] (target, zoom, bearing, tilt) that the UI can
  * apply with `CameraUpdateFactory.newCameraPosition(...)`.
  *
  * Stateful: keeps the previous bearing so we can damp jitter at low
  * speeds. The heuristic for the damping is "below 5 km/h, lock to the
- * previous bearing" — at walking pace GPS heading is essentially noise.
+ * previous bearing" - at walking pace GPS heading is essentially noise.
  */
 class CameraController(private val profile: NavigationProfile) {
 
@@ -61,7 +61,7 @@ class CameraController(private val profile: NavigationProfile) {
         return frameFor(snapped, speedMps, bearing)
     }
 
-    /** Below 5 km/h, the heading is unreliable — keep the previous one. */
+    /** Below 5 km/h, the heading is unreliable - keep the previous one. */
     private fun pickBearing(speedMps: Double, gpsHeadingDeg: Double?): Double {
         val speedKmh = speedMps * 3.6
         if (speedKmh < SLOW_LOCK_KMH || gpsHeadingDeg == null || !gpsHeadingDeg.isFinite()) {
@@ -72,10 +72,10 @@ class CameraController(private val profile: NavigationProfile) {
 
     /**
      * Zoom by speed, matching the bands Google Maps uses:
-     *   * walk-pace (≤ 7 km/h) → very close (z18)
-     *   * bike-pace (≤ 25 km/h) → close (z17)
-     *   * urban driving (≤ 60 km/h) → medium (z15.5)
-     *   * highway → wide (z14)
+     *   * walk-pace (<= 7 km/h) -> very close (z18)
+     *   * bike-pace (<= 25 km/h) -> close (z17)
+     *   * urban driving (<= 60 km/h) -> medium (z15.5)
+     *   * highway -> wide (z14)
      */
     private fun zoomFor(speedMps: Double): Double {
         val kmh = speedMps * 3.6
@@ -87,7 +87,7 @@ class CameraController(private val profile: NavigationProfile) {
         }
     }
 
-    /** Tilt by profile — walking gets 2D top-down, vehicles get a pitch. */
+    /** Tilt by profile - walking gets 2D top-down, vehicles get a pitch. */
     private fun tiltFor(profile: NavigationProfile): Double = when (profile) {
         NavigationProfile.Walking -> 0.0
         NavigationProfile.Biking -> 30.0

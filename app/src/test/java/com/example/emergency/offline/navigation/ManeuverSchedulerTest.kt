@@ -10,21 +10,21 @@ class ManeuverSchedulerTest {
     @Test
     fun walkingFiresEightyMeterWarningAndImminent() {
         val s = ManeuverScheduler(NavigationProfile.Walking)
-        // 200m → above the ladder; nothing fires.
+        // 200m -> above the ladder; nothing fires.
         assertNull(s.tick(currentStepIndex = 0, distanceToStepM = 200.0))
-        // 90m → still above 80m threshold; nothing.
+        // 90m -> still above 80m threshold; nothing.
         assertNull(s.tick(0, 90.0))
-        // 70m → crosses 80m; fires At(80m).
+        // 70m -> crosses 80m; fires At(80m).
         val first = s.tick(0, 70.0)
         assertNotNull(first)
         assertEquals(ManeuverScheduler.Trigger.At(80.0), first!!.trigger)
-        // 40m → above NOW threshold (25m); nothing fires (80m already used).
+        // 40m -> above NOW threshold (25m); nothing fires (80m already used).
         assertNull(s.tick(0, 40.0))
-        // 20m → crosses NOW.
+        // 20m -> crosses NOW.
         val second = s.tick(0, 20.0)
         assertNotNull(second)
         assertEquals(ManeuverScheduler.Trigger.Now, second!!.trigger)
-        // Re-tick at NOW distance: nothing — already fired.
+        // Re-tick at NOW distance: nothing - already fired.
         assertNull(s.tick(0, 5.0))
     }
 

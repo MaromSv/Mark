@@ -12,7 +12,7 @@ import org.junit.rules.TemporaryFolder
 import java.io.File
 
 /**
- * Pure-JVM tests for [OfflineRouter.mergeSegments] — the hardlink-farm
+ * Pure-JVM tests for [OfflineRouter.mergeSegments] - the hardlink-farm
  * helper that unions every installed pack's `routing/*.rd5` under a
  * single dir for BRouter to consume.
  *
@@ -69,7 +69,7 @@ class OfflineRouterMergeTest {
         val firstMerge = OfflineRouter.mergeSegments(listOf(nl), activeRoot)!!
         assertEquals(setOf("E0_N50.rd5"), firstMerge.list().orEmpty().toSet())
 
-        // Add BE and re-merge — the new segment must appear.
+        // Add BE and re-merge - the new segment must appear.
         val secondMerge = OfflineRouter.mergeSegments(listOf(nl, be), activeRoot)!!
         assertEquals(
             setOf("E0_N50.rd5", "E5_N50.rd5"),
@@ -99,7 +99,7 @@ class OfflineRouterMergeTest {
     fun missingRoutingDirIsToleratedNotFatal() {
         val root = tmp.newFolder("filesDir")
         val activeRoot = File(root, "regions/_active").apply { mkdirs() }
-        // Pack with no routing/ dir — should be skipped without throwing.
+        // Pack with no routing/ dir - should be skipped without throwing.
         val packDir = File(root, "regions/broken").apply { mkdirs() }
         val broken = RegionPack(
             id = "broken", name = "BROKEN", type = RegionType.COUNTRY,
@@ -108,7 +108,7 @@ class OfflineRouterMergeTest {
             rootDir = packDir,
         )
         val merged = OfflineRouter.mergeSegments(listOf(broken), activeRoot)
-        // Empty but non-null — caller decides whether empty is a failure.
+        // Empty but non-null - caller decides whether empty is a failure.
         assertTrue(merged != null)
         assertEquals(0, merged!!.list().orEmpty().size)
     }

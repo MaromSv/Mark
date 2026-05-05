@@ -10,17 +10,17 @@ import kotlin.math.sqrt
 
 /**
  * Pulls turn-by-turn instructions out of a BRouter
- * `btools.router.OsmTrack`. Plan §8 step 7.
+ * `btools.router.OsmTrack`. Plan section 8 step 7.
  *
  * BRouter's voice-hint API surface has shifted between versions (private
- * fields → getters; renames; new commands), so this parser is **purely
- * reflective** — it never imports `btools.*`. That keeps the build
+ * fields -> getters; renames; new commands), so this parser is **purely
+ * reflective** - it never imports `btools.*`. That keeps the build
  * independent of which BRouter jar version is on the classpath, and
  * means a future BRouter rev that adds a new command merely shows up as
  * `TurnCommand.Unknown` instead of breaking the build.
  *
  * Returns an empty list on any structural surprise (missing field,
- * missing method, type mismatch). Routing keeps working — the user just
+ * missing method, type mismatch). Routing keeps working - the user just
  * doesn't get turn instructions, which the navigation UI handles
  * gracefully (Step 7.5 falls back to "follow the polyline").
  */
@@ -76,7 +76,7 @@ object VoiceHintParser {
         return steps
     }
 
-    // ─── Reflective accessors ────────────────────────────────────────────────
+    // --- Reflective accessors ------------------------------------------------
 
     /**
      * BRouter's `OsmTrack.voiceHints` is a `VoiceHintList` (which has a
@@ -151,7 +151,7 @@ object VoiceHintParser {
         return null
     }
 
-    // BRouter command int → string code, roughly stable across 1.7.x.
+    // BRouter command int -> string code, roughly stable across 1.7.x.
     // Used only when the string getter is missing in older jars.
     private val COMMAND_INT_TO_STRING = mapOf(
         1 to "C",
@@ -173,11 +173,11 @@ object VoiceHintParser {
         17 to "END",
     )
 
-    // ─── Geo helpers ─────────────────────────────────────────────────────────
+    // --- Geo helpers ---------------------------------------------------------
 
     /**
      * Sum of haversine edge lengths between two indices on [polyline].
-     * Returns 0.0 when the indices are equal or out of range — used as
+     * Returns 0.0 when the indices are equal or out of range - used as
      * the distance-to-next fallback when BRouter doesn't carry the field.
      */
     private fun distanceBetweenIndices(polyline: List<LatLng>, fromIdx: Int, toIdx: Int): Double {

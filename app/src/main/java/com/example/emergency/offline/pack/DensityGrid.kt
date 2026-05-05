@@ -14,11 +14,11 @@ import kotlin.math.roundToLong
 
 /**
  * Per-cell density lookup that powers the live size estimate on the
- * Custom-bbox region picker (plan §8 step 5). Maps a draggable rectangle
- * to expected pack size in <1 ms by summing cell-area × cell-density
+ * Custom-bbox region picker (plan section 8 step 5). Maps a draggable rectangle
+ * to expected pack size in <1 ms by summing cell-area x cell-density
  * over the cells the rectangle covers.
  *
- * The grid is shipped as `bundled/density-grid.bin` in the APK (plan §3
+ * The grid is shipped as `bundled/density-grid.bin` in the APK (plan section 3
  * Tier 0); the build script that generates it lives at
  * `scripts/build-pack/density-grid-build.py`.
  *
@@ -27,30 +27,30 @@ import kotlin.math.roundToLong
  * ```
  * offset  size  field
  * 0       4     magic "DGR1" (ASCII)
- * 4       4     float32 LE — cellSizeDeg (typically 0.5)
- * 8       4     int32 LE   — nCols
- * 12      4     int32 LE   — nRows
- * 16      …     uint16 LE per cell, in TENTHS of KB/km² ("decikb/km²"):
+ * 4       4     float32 LE - cellSizeDeg (typically 0.5)
+ * 8       4     int32 LE   - nCols
+ * 12      4     int32 LE   - nRows
+ * 16      ...     uint16 LE per cell, in TENTHS of KB/km^2 ("decikb/km^2"):
  *                 stored value = round(kb_per_km2 * 10).
  *                 Row 0 = south edge (lat = -90), col 0 = west edge (lon = -180).
  *                 Cell (col,row) covers
- *                   lon ∈ [-180 + col*cs, -180 + (col+1)*cs],
- *                   lat ∈ [-90  + row*cs, -90  + (row+1)*cs]
+ *                   lon in [-180 + col*cs, -180 + (col+1)*cs],
+ *                   lat in [-90  + row*cs, -90  + (row+1)*cs]
  *                 where cs = cellSizeDeg.
  * ```
  *
- * The 0.1-KB unit gives sub-KB precision for rural cells (≈0.3 KB/km²
+ * The 0.1-KB unit gives sub-KB precision for rural cells (~=0.3 KB/km^2
  * baseline) without forcing a wider type; uint16 still tops out at
- * 6553 KB/km², well above any plausible urban density.
+ * 6553 KB/km^2, well above any plausible urban density.
  *
- * 0.5° × 720×360 = 519 KB. Smaller cell sizes are valid but should keep
+ * 0.5 deg x 720x360 = 519 KB. Smaller cell sizes are valid but should keep
  * the same byte order so old builds can still parse new grids.
  */
 class DensityGrid internal constructor(
     val cellSizeDeg: Double,
     val nCols: Int,
     val nRows: Int,
-    /** Raw cells, decikb/km² — the wire unit. Use [kbPerKm2] to read in KB/km². */
+    /** Raw cells, decikb/km^2 - the wire unit. Use [kbPerKm2] to read in KB/km^2. */
     private val deciKbPerKm2: ShortArray,
 ) {
     init {
@@ -60,7 +60,7 @@ class DensityGrid internal constructor(
         }
     }
 
-    /** KB/km² at the given cell. Out-of-range indices return 0. */
+    /** KB/km^2 at the given cell. Out-of-range indices return 0. */
     fun kbPerKm2(col: Int, row: Int): Double {
         if (col < 0 || col >= nCols || row < 0 || row >= nRows) return 0.0
         return (deciKbPerKm2[row * nCols + col].toInt() and 0xFFFF) / 10.0
@@ -68,11 +68,11 @@ class DensityGrid internal constructor(
 
     /**
      * Estimate the byte size of a region pack covering [bbox]. Sums
-     * cell-area × cell-density across every cell the bbox intersects;
+     * cell-area x cell-density across every cell the bbox intersects;
      * fractional cells contribute fractional area so a 50 km box that
-     * doesn't align to the 0.5° grid still gets a sensible answer.
+     * doesn't align to the 0.5 deg grid still gets a sensible answer.
      *
-     * Plan target: within ±15 % of the actual pack size for that bbox.
+     * Plan target: within +/-15 % of the actual pack size for that bbox.
      */
     fun estimateBytes(bbox: BoundingBox): Long {
         val cs = cellSizeDeg
@@ -112,7 +112,7 @@ class DensityGrid internal constructor(
         private const val EPS = 1e-9
 
         /**
-         * Reads the grid from [input]. Does not close the stream — the
+         * Reads the grid from [input]. Does not close the stream - the
          * caller manages that, mirroring the rest of the offline-pack code.
          * Throws [IOException] on a bad magic or truncated body.
          */

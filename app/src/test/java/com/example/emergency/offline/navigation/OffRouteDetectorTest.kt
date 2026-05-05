@@ -28,7 +28,7 @@ class OffRouteDetectorTest {
     @Test
     fun cooldownSuppressesRefires() {
         val d = OffRouteDetector(NavigationProfile.Driving)
-        // Drive (threshold 80m). Three consecutive ticks → fires.
+        // Drive (threshold 80m). Three consecutive ticks -> fires.
         d.tick(100.0, 1_000)
         d.tick(110.0, 2_000)
         val first = d.tick(120.0, 3_000)
@@ -40,7 +40,7 @@ class OffRouteDetectorTest {
         d.tick(130.0, 6_000)
         d.tick(130.0, 12_000) // still inside the 10s cooldown
         assertNull(d.tick(130.0, 12_500))
-        // Past the cooldown — needs three new consecutive ticks again.
+        // Past the cooldown - needs three new consecutive ticks again.
         val tooSoon = d.tick(130.0, 14_000)
         assertNull(tooSoon)
         d.tick(130.0, 15_000)
@@ -65,7 +65,7 @@ class OffRouteDetectorTest {
         d.tick(50.0, 0); d.tick(50.0, 1000)
         assertNotNull(d.tick(50.0, 2000))
         d.reset()
-        // Three more — fires immediately because cooldown is cleared.
+        // Three more - fires immediately because cooldown is cleared.
         d.tick(50.0, 3_000); d.tick(50.0, 4_000)
         assertNotNull(d.tick(50.0, 5_000))
     }

@@ -61,7 +61,7 @@ class RegionResolverTest {
         )
     }
 
-    // ─── Multi-region helpers (Step 6) ──────────────────────────────────────
+    // --- Multi-region helpers (Step 6) --------------------------------------
 
     private fun installed(id: String, bbox: BoundingBox): RegionPack = RegionPack(
         id = id, name = id.uppercase(), type = RegionType.COUNTRY,
@@ -87,7 +87,7 @@ class RegionResolverTest {
         val nl = entry("nl", BoundingBox(3.0, 50.5, 7.5, 53.7))
         val de = entry("de", BoundingBox(5.86, 47.27, 15.05, 55.06))
         val catalog = listOf(nl, de)
-        // No packs installed — both endpoints contribute.
+        // No packs installed - both endpoints contribute.
         val missing = RegionResolver.missingForRoute(
             catalog = catalog, installed = emptyList(),
             fromLat = 52.37, fromLon = 4.90,    // Amsterdam (NL)
@@ -104,8 +104,8 @@ class RegionResolverTest {
         val installed = listOf(installed("nl", nl.bbox))
         val missing = RegionResolver.missingForRoute(
             catalog = catalog, installed = installed,
-            fromLat = 52.37, fromLon = 4.90,    // Amsterdam (NL — installed)
-            toLat = 52.52, toLon = 13.40,        // Berlin (DE — not installed)
+            fromLat = 52.37, fromLon = 4.90,    // Amsterdam (NL - installed)
+            toLat = 52.52, toLon = 13.40,        // Berlin (DE - not installed)
         )
         assertEquals(listOf("de"), missing.map { it.id })
     }

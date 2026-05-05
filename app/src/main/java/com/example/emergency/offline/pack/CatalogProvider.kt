@@ -16,16 +16,16 @@ import java.net.URL
 
 /**
  * Source of truth for "which region packs are available to download"
- * (plan §6).
+ * (plan section 6).
  *
  * Three layered sources, queried in this order at startup:
- *   1. **Cached** — `filesDir/bundled/catalog.json` (last successful
+ *   1. **Cached** - `filesDir/bundled/catalog.json` (last successful
  *      remote fetch). Picked first so launches after an offline session
  *      still see the freshest catalog the device has ever seen.
- *   2. **Bundled** — `assets/bundled/catalog.json` shipped in the APK.
+ *   2. **Bundled** - `assets/bundled/catalog.json` shipped in the APK.
  *      Used on first launch and as the offline fallback when both the
  *      cache and remote are unavailable.
- *   3. **Remote** — `REMOTE_CATALOG_URL` (the file that GitHub Actions
+ *   3. **Remote** - `REMOTE_CATALOG_URL` (the file that GitHub Actions
  *      regenerates after every pack-build run, served from the same
  *      repo). Fetched in the background; on success the in-memory state
  *      flips to the fresh copy and the cache is overwritten so the next
@@ -47,7 +47,7 @@ class CatalogProvider private constructor(
 
     val catalog: StateFlow<CatalogManifest> = _catalog.asStateFlow()
 
-    /** Convenience accessor — most callers only care about the entry list. */
+    /** Convenience accessor - most callers only care about the entry list. */
     val entries: List<CatalogEntry> get() = _catalog.value.packs
 
     fun get(id: String): CatalogEntry? = entries.firstOrNull { it.id == id }
@@ -59,7 +59,7 @@ class CatalogProvider private constructor(
      *     refresh and is at least as fresh as the bundled snapshot).
      *   * Otherwise fall back to the APK-bundled snapshot.
      *
-     * Cheap and synchronous — both files are < 100 KB.
+     * Cheap and synchronous - both files are < 100 KB.
      */
     fun loadFromDisk() {
         val cached = File(appContext.filesDir, CACHE_PATH)
@@ -88,7 +88,7 @@ class CatalogProvider private constructor(
      *     the next launch starts from this copy.
      *
      * On failure (no network, bad JSON, server down) the existing state
-     * stays put — the user keeps seeing whatever was loaded from disk.
+     * stays put - the user keeps seeing whatever was loaded from disk.
      * Safe to call repeatedly; no debouncing because each attempt is
      * cheap (~few KB download).
      */
@@ -131,7 +131,7 @@ class CatalogProvider private constructor(
         tmp.writeText(json)
         if (cache.exists()) cache.delete()
         if (!tmp.renameTo(cache)) {
-            Log.w(TAG, "Catalog cache rename failed: $tmp → $cache")
+            Log.w(TAG, "Catalog cache rename failed: $tmp -> $cache")
         }
     }
 

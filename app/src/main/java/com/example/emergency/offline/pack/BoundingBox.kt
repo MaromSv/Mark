@@ -8,8 +8,8 @@ import kotlin.math.min
 
 /**
  * Geographic bounding box in WGS84, expressed as `[west, south, east, north]`
- * — the same order used by GeoJSON, Mapbox/MapLibre and the manifest format
- * (see plan §6). Construction validates the box is non-degenerate and in
+ * - the same order used by GeoJSON, Mapbox/MapLibre and the manifest format
+ * (see plan section 6). Construction validates the box is non-degenerate and in
  * range; out-of-range or inverted coordinates fail loudly because every
  * downstream consumer (DensityGrid, RegionResolver, OfflineRouter pre-flight)
  * assumes a sane box.
@@ -44,8 +44,8 @@ data class BoundingBox(
     }
 
     /**
-     * Area in km², using equirectangular approximation at the midpoint
-     * latitude. Good to ~1 % for boxes up to ~5° tall, which covers every
+     * Area in km^2, using equirectangular approximation at the midpoint
+     * latitude. Good to ~1 % for boxes up to ~5 deg tall, which covers every
      * sub-country region the picker can produce.
      */
     fun areaKm2(): Double {

@@ -11,12 +11,12 @@ import java.io.File
 
 /**
  * Source of truth for "which region packs are installed on this device"
- * (plan §6). Backed by a single JSON registry file
+ * (plan section 6). Backed by a single JSON registry file
  * (`filesDir/regions/installed.json`); the actual pack bytes live in
  * `filesDir/regions/<id>/` next to it.
  *
- * Why JSON, not Room (deferred from the §6 sketch): the dataset is
- * tiny — at most a few dozen rows, written ~once per install/delete and
+ * Why JSON, not Room (deferred from the section 6 sketch): the dataset is
+ * tiny - at most a few dozen rows, written ~once per install/delete and
  * read once per process start. A whole SQLite-backed Room module (kapt
  * annotation processor + DAOs + migrations) would be heavier than the
  * problem requires. Swap to Room before we ship multi-device sync or
@@ -41,7 +41,7 @@ class RegionStore private constructor(
 
     /**
      * Inserts or replaces the pack row. The pack's bytes must already be in
-     * place under `regionsRoot/<id>/` — this is the bookkeeping half of the
+     * place under `regionsRoot/<id>/` - this is the bookkeeping half of the
      * install, called by [com.example.emergency.offline.download.PackDownloader]
      * after the atomic rename.
      */
@@ -55,7 +55,7 @@ class RegionStore private constructor(
 
     /**
      * Removes the registry row and deletes the pack directory. Returns true
-     * iff both succeeded — a partial delete (registry gone, files lingering
+     * iff both succeeded - a partial delete (registry gone, files lingering
      * because something held a file handle) returns false and logs.
      */
     @Synchronized
@@ -64,13 +64,13 @@ class RegionStore private constructor(
         _state.value = _state.value.filterNot { it.id == id }
         save()
         val deleted = pack.rootDir.deleteRecursively()
-        if (!deleted) Log.w(TAG, "Couldn't fully delete ${pack.rootDir} — registry already cleared")
+        if (!deleted) Log.w(TAG, "Couldn't fully delete ${pack.rootDir} - registry already cleared")
         return deleted
     }
 
     /**
      * Stamps the pack's [RegionPack.lastUsedAt] to "now" so the picker can
-     * surface most-recently-used packs first. Cheap — caller doesn't need
+     * surface most-recently-used packs first. Cheap - caller doesn't need
      * to throttle.
      */
     @Synchronized
@@ -155,7 +155,7 @@ class RegionStore private constructor(
         val tmp = File(registryFile.parentFile, "${registryFile.name}.partial")
         tmp.writeText(arr.toString(2))
         if (registryFile.exists()) registryFile.delete()
-        check(tmp.renameTo(registryFile)) { "registry rename failed: $tmp → $registryFile" }
+        check(tmp.renameTo(registryFile)) { "registry rename failed: $tmp -> $registryFile" }
     }
 
     companion object {

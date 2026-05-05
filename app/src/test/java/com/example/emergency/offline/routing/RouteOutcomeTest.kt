@@ -37,7 +37,7 @@ class RouteOutcomeTest {
             uncoveredEndpoints = listOf(RouteOutcome.Endpoint.FROM, RouteOutcome.Endpoint.TO),
         )
         val msg = outcome.userMessage()
-        // No catalog match — message must NOT promise a fix it can't deliver.
+        // No catalog match - message must NOT promise a fix it can't deliver.
         assertTrue("$msg should not say 'Install'", "Install" !in msg)
         assertTrue("$msg should explain there's no pack", "outside" in msg)
     }

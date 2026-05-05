@@ -80,7 +80,7 @@ class GemmaLlm(private val context: Context) {
 
     /**
      * Drops the current conversation history and starts fresh, reusing the
-     * loaded engine and the same system prompt + sampler config. Cheap —
+     * loaded engine and the same system prompt + sampler config. Cheap -
      * no model reload.
      */
     fun resetConversation() {

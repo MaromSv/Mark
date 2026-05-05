@@ -22,7 +22,7 @@ class GpsLocationTool(private val context: Context) {
         name = "get_location",
         description = "Returns the user's current GPS coordinates as 'lat, lon'. " +
             "Use only when the user asks where they are. For navigation or 'take me to X', " +
-            "use route_to instead — get_location no longer fakes turn-by-turn directions.",
+            "use route_to instead - get_location no longer fakes turn-by-turn directions.",
         execute = ::execute,
     )
 

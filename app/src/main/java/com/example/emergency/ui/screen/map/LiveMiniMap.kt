@@ -49,7 +49,7 @@ private const val MINI_TAG = "LiveMiniMap"
 /**
  * A small embedded MapLibre view for chat cards and the home preview. Renders
  * the PDOK basemap, a blue you-here dot, and (if [destination] is supplied) a
- * dashed walking route + a destination marker. All gestures are disabled — it
+ * dashed walking route + a destination marker. All gestures are disabled - it
  * is meant to look like a live thumbnail, not an interactive surface.
  *
  * The route is fetched from BRouter (walking profile) the same way the full
@@ -188,7 +188,7 @@ fun LiveMiniMap(
 
     // Pull a route from BRouter when we have a destination and draw it as a
     // dashed line. We use the walking profile because the chat card is a
-    // preview, not a planning tool — the user can pick a different mode after
+    // preview, not a planning tool - the user can pick a different mode after
     // tapping through to the full map.
     LaunchedEffect(routeSource, userLocation, destination, offlinePaths, installedPacks, catalog) {
         val src = routeSource ?: return@LaunchedEffect
@@ -197,7 +197,7 @@ fun LiveMiniMap(
             src.setGeoJson(LineString.fromLngLats(emptyList()))
             return@LaunchedEffect
         }
-        // Mini-map silently hides the polyline on every non-Success outcome —
+        // Mini-map silently hides the polyline on every non-Success outcome -
         // the chat bubble that hosts it has its own (terser) "tap to open
         // map for details" affordance, so we don't need to surface the
         // typed reason here.
@@ -290,7 +290,7 @@ private fun buildMiniOfflineStyle(context: android.content.Context, tileUrlTempl
     return template.replace(MINI_TILE_URL_PLACEHOLDER, tileUrlTemplate)
 }
 
-// Same fallback as InteractiveMap — used when the bundled skeleton mbtiles
+// Same fallback as InteractiveMap - used when the bundled skeleton mbtiles
 // hasn't been built yet so the route + dot still have a canvas to render on.
 private const val MINI_FALLBACK_BACKGROUND_STYLE = """
 {

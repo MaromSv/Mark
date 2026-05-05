@@ -14,14 +14,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Process-wide owner of the offline-asset staging job.
  *
- * Why this exists: previously the 470 MB APK→filesDir copy happened inside the
+ * Why this exists: previously the 470 MB APK->filesDir copy happened inside the
  * map composable's [androidx.compose.runtime.LaunchedEffect], hidden behind a
  * full-screen blocking overlay. That meant the user saw a 9-second wall every
  * time they entered the map screen. By moving the kick-off to
  * [com.example.emergency.EmergencyApp.onCreate], the copy starts the moment
  * the process boots and runs in parallel with everything else (home screen,
  * GPS permission prompt, map view inflation). By the time the user actually
- * navigates to the map, staging is usually already done — and even if it
+ * navigates to the map, staging is usually already done - and even if it
  * isn't, the map UI is fully interactive while a small progress pill informs
  * the user.
  *
@@ -43,7 +43,7 @@ object OfflineBootstrap {
         /** Copy in progress. [done] / [total] are file counts, not bytes. */
         data class Staging(val done: Int, val total: Int) : Status
 
-        /** Staging finished — [paths] are ready to use. */
+        /** Staging finished - [paths] are ready to use. */
         data class Ready(val paths: OfflineAssets.Paths) : Status
 
         /** Copy failed; UI surfaces [message] and the map falls back gracefully. */
@@ -74,7 +74,7 @@ object OfflineBootstrap {
         // Fast path: assets were staged on a previous launch. Skip the IO
         // dispatch entirely so the very first state emission is already Ready.
         if (OfflineAssets.isStaged(appContext)) {
-            Log.d(TAG, "Already staged on disk — skipping copy")
+            Log.d(TAG, "Already staged on disk - skipping copy")
             _state.value = Status.Ready(OfflineAssets.pathsFor(appContext))
             return
         }

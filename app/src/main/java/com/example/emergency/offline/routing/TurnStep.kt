@@ -3,21 +3,21 @@ package com.example.emergency.offline.routing
 import com.mapbox.mapboxsdk.geometry.LatLng
 
 /**
- * One maneuver in a routing result. Plan §8 step 7 shape:
+ * One maneuver in a routing result. Plan section 8 step 7 shape:
  * `{location, command, distanceToNextMeters, streetName, indexInPolyline}`.
  *
- *   * [location] — where on the map the user actually performs the action.
- *   * [command] — the maneuver category (turn, keep, roundabout exit…).
- *   * [distanceToNextMeters] — distance from this maneuver to the next, or
+ *   * [location] - where on the map the user actually performs the action.
+ *   * [command] - the maneuver category (turn, keep, roundabout exit...).
+ *   * [distanceToNextMeters] - distance from this maneuver to the next, or
  *     to the destination if this is the last step. The active-navigation
- *     UI subtracts the user's progress from this to show "In 200 m, …";
+ *     UI subtracts the user's progress from this to show "In 200 m, ...";
  *     pre-rendered step lists use it directly as "after the turn, walk
  *     200 m before the next instruction".
- *   * [streetName] — name of the road the user moves onto after this
+ *   * [streetName] - name of the road the user moves onto after this
  *     maneuver. May be null if OSM has no `name` for the way (common in
  *     residential closes / unpaved tracks); the formatter falls back to
  *     "the road" in that case.
- *   * [indexInPolyline] — index into [com.example.emergency.offline.OfflineRouter.Result.polyline].
+ *   * [indexInPolyline] - index into [com.example.emergency.offline.OfflineRouter.Result.polyline].
  *     Lets navigation code (Step 7.5) snap GPS to the polyline and figure
  *     out which TurnStep is currently active.
  */
@@ -37,9 +37,9 @@ data class TurnStep(
  * |--------------|----------------------|-------------------------------------|
  * | C            | CONTINUE             | go straight, no decision             |
  * | TLU          | U_TURN_LEFT          | u-turn (left-handed)                 |
- * | TSHL         | TURN_SHARP_LEFT      | sharp left (>120°)                   |
- * | TL           | TURN_LEFT            | regular left (~90°)                  |
- * | TSLL         | TURN_SLIGHT_LEFT     | slight left (~30°)                   |
+ * | TSHL         | TURN_SHARP_LEFT      | sharp left (>120 deg)                   |
+ * | TL           | TURN_LEFT            | regular left (~90 deg)                  |
+ * | TSLL         | TURN_SLIGHT_LEFT     | slight left (~30 deg)                   |
  * | TSTR         | STRAIGHT             | go straight at junction               |
  * | TSLR         | TURN_SLIGHT_RIGHT    | slight right                         |
  * | TR           | TURN_RIGHT           | regular right                        |
@@ -80,7 +80,7 @@ sealed class TurnCommand {
     companion object {
         /**
          * Parses BRouter's `getCommandString()` output. The roundabout
-         * codes carry the exit number as a numeric suffix ("RNDB3" → take
+         * codes carry the exit number as a numeric suffix ("RNDB3" -> take
          * 3rd exit). Unknown codes return [Unknown] so the formatter can
          * decide whether to surface "(unknown maneuver)" or skip.
          */
@@ -89,7 +89,7 @@ sealed class TurnCommand {
             // upper, but we don't want to break on a stray lowercase).
             val s = raw.trim()
             if (s.isEmpty()) return Continue
-            // RNDBn / RNLBn — variable suffix.
+            // RNDBn / RNLBn - variable suffix.
             if (s.startsWith("RNDB")) {
                 val exit = s.substring(4).toIntOrNull() ?: 1
                 return Roundabout(exit = exit, leftHanded = false)

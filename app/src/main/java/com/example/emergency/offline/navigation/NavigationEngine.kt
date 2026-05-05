@@ -9,30 +9,30 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * State machine for an active navigation session (plan §8 step 7.5).
+ * State machine for an active navigation session (plan section 8 step 7.5).
  *
  * Lifecycle:
  *
  * ```
- *   Preview ─── start() ──▶ Navigating ─── tick() ──▶ Navigating
- *                              │  ▲                       │
- *                              │  │                       │
- *                  reroute() ──┘  └── newRoute()          ▼
- *                              ▼                       Arrived
+ *   Preview --- start() --> Navigating --- tick() --> Navigating
+ *                              |  ^                       |
+ *                              |  |                       |
+ *                  reroute() --+  +-- newRoute()          v
+ *                              v                       Arrived
  *                          Rerouting
  * ```
  *
- *   * **Preview**: route is loaded but no GPS feed yet — the user is
+ *   * **Preview**: route is loaded but no GPS feed yet - the user is
  *     looking at the polyline, distance, ETA on the route-info card.
  *   * **Navigating**: each `tick(location)` runs the route-progress
  *     tracker, the maneuver scheduler, and the off-route detector. The
  *     UI binds to [state] for the live banner / ETA / off-route banner.
  *   * **Rerouting**: an off-route event has fired and the engine is
  *     waiting on a fresh route from the caller (we don't own the
- *     [OfflineRouter] call here — the UI does, because re-routing needs
+ *     [OfflineRouter] call here - the UI does, because re-routing needs
  *     access to RegionStore + CatalogProvider too).
  *   * **Arrived**: the snapped point is within `arrivedThresholdM` of
- *     the destination. Terminal — caller resets to Preview to start a
+ *     the destination. Terminal - caller resets to Preview to start a
  *     new session.
  *
  * Single-threaded: callers tick from one place (the UI's location
@@ -50,10 +50,10 @@ class NavigationEngine(
     private val offRoute = OffRouteDetector(profile)
     private val camera = CameraController(profile)
 
-    /** The currently-active route — replaced on [applyNewRoute]. */
+    /** The currently-active route - replaced on [applyNewRoute]. */
     private var route: OfflineRouter.Result = initialRoute
 
-    /** Move from Preview → Navigating. Idempotent. */
+    /** Move from Preview -> Navigating. Idempotent. */
     fun start() {
         val current = _state.value
         if (current is NavigationState.Navigating || current is NavigationState.Rerouting) return
@@ -77,7 +77,7 @@ class NavigationEngine(
     ) {
         val active = _state.value as? NavigationState.Navigating
             ?: _state.value as? NavigationState.Rerouting
-            ?: return // Preview / Arrived — no-op
+            ?: return // Preview / Arrived - no-op
 
         val progress = RouteProgressTracker.snap(
             polyline = route.polyline,

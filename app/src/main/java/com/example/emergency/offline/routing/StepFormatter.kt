@@ -11,10 +11,10 @@ package com.example.emergency.offline.routing
  *   * Distance bucketing matches Google Maps: under 100 m show "50 m",
  *     under a kilometre show "400 m" (rounded to 50 m for spoken cadence),
  *     otherwise "1.2 km" with one decimal.
- *   * "Onto" is used only when the new street has a name — falling back
+ *   * "Onto" is used only when the new street has a name - falling back
  *     to "the road" reads more honestly than dropping the connector.
- *   * Roundabouts always spell out the exit number — "the 1st exit", not
- *     "exit 1" — because "exit 3" sounds like a motorway sign.
+ *   * Roundabouts always spell out the exit number - "the 1st exit", not
+ *     "exit 1" - because "exit 3" sounds like a motorway sign.
  */
 object StepFormatter {
 
@@ -35,7 +35,7 @@ object StepFormatter {
         }
         return if (distanceUntilHereM < ANNOUNCE_FLOOR_METERS) {
             // No "In X m," lead-in for sub-floor distances or the first
-            // instruction on the route — just speak the maneuver.
+            // instruction on the route - just speak the maneuver.
             maneuver.replaceFirstChar { it.uppercase() }
         } else {
             "In ${formatDistance(distanceUntilHereM)}, $maneuver"
@@ -44,9 +44,9 @@ object StepFormatter {
 
     /**
      * Distance bucketing used by [formatStep].
-     *   * `< 100 m` → rounded to 10 m, "50 m"
-     *   * `< 1 000 m` → rounded to 50 m, "400 m"
-     *   * `≥ 1 000 m` → one-decimal km, "1.2 km"
+     *   * `< 100 m` -> rounded to 10 m, "50 m"
+     *   * `< 1 000 m` -> rounded to 50 m, "400 m"
+     *   * `>= 1 000 m` -> one-decimal km, "1.2 km"
      */
     fun formatDistance(meters: Double): String = when {
         meters < 100.0 -> "${(meters / 10).toInt() * 10} m"
@@ -59,7 +59,7 @@ object StepFormatter {
      * for the LLM tool reply (Step 8) and for snapshot tests.
      *
      * The first entry's distance comes from the start, not from a
-     * preceding maneuver — its `distanceUntilHereM` is its own
+     * preceding maneuver - its `distanceUntilHereM` is its own
      * `distanceToNextMeters` field interpreted as "distance from start".
      * BRouter usually emits a leading "C" (continue) hint at index 0
      * with the right value, but if it doesn't we fall back to 0.
@@ -75,7 +75,7 @@ object StepFormatter {
         return out
     }
 
-    // ─── Internals ───────────────────────────────────────────────────────────
+    // --- Internals -----------------------------------------------------------
 
     /**
      * The "verb + object" half of an instruction (without distance lead).

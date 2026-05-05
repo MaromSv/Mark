@@ -12,10 +12,10 @@ import com.example.emergency.offline.OfflineRouter
  * Single-slot, latest-write-wins. The producer (RouteInfoCard's "Start"
  * button) writes immediately before navigating; the consumer reads on
  * mount and clears. If the slot is empty when NavigationScreen reads,
- * it renders an empty state and offers a back button — better than
+ * it renders an empty state and offers a back button - better than
  * crashing on a stale process restart.
  *
- * No persistence — survives in-memory navigation only. Process death
+ * No persistence - survives in-memory navigation only. Process death
  * loses the pending route, which is the correct behaviour (the user
  * comes back to the map and re-taps anyway).
  */

@@ -12,10 +12,10 @@ import java.io.File
  * Android 10.x (which only speaks `http(s)://` for tile sources) and our
  * on-device vector packs.
  *
- * After Step 3 (plan §3) callers point this at either the bundled
- * Tier-0 skeleton (`bundled/skeleton.mbtiles`, z0–z6 worldwide) or a
+ * After Step 3 (plan section 3) callers point this at either the bundled
+ * Tier-0 skeleton (`bundled/skeleton.mbtiles`, z0-z6 worldwide) or a
  * downloaded per-region detail pack (`regions/<id>/tiles.mbtiles`,
- * z7–z14). A future change (Step 4/5) will compose multiple sources
+ * z7-z14). A future change (Step 4/5) will compose multiple sources
  * behind a single endpoint.
  *
  * MBTiles vector tiles are stored gzip-compressed in `tile_data` per the

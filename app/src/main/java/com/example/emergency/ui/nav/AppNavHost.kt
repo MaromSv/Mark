@@ -290,7 +290,7 @@ fun AppNavHost() {
                 // Generate response with tool calling support
                 if (gemma.isLoaded) {
                     // Reset conversation so the model starts fresh from the
-                    // system prompt — this prevents it from copying its own
+                    // system prompt - this prevents it from copying its own
                     // previous (sometimes malformed) tool-call XML. We then
                     // prepend a sanitised summary of the last few exchanges
                     // to the user prompt so the model retains context.
@@ -312,7 +312,7 @@ fun AppNavHost() {
                                     }
                                     ChatRole.TOOL -> {
                                         val tc = msg.toolCall
-                                        if (tc != null) appendLine("(Tool ${tc.toolName} → ${tc.status})")
+                                        if (tc != null) appendLine("(Tool ${tc.toolName} -> ${tc.status})")
                                     }
                                 }
                             }
@@ -356,7 +356,7 @@ fun AppNavHost() {
                     }
                     if (toolCalls.isNotEmpty()) {
                         // When a tool call is found, HIDE the original assistant
-                        // bubble — the model often puts a preamble answer before
+                        // bubble - the model often puts a preamble answer before
                         // the <tool_call> which would duplicate the follow-up.
                         val assistantIdx = threadMessages.indexOfFirst { it.id == assistantId }
                         val preambleText = toolManager.removeToolCallBlocks(fullResponse).trim()
@@ -406,7 +406,7 @@ fun AppNavHost() {
                         if (toolCall.toolName != "cpr_instructions" && toolCall.toolName != "abc_check") {
                             if (result.success) {
                                 // Generate a follow-up response from the tool result
-                                val followUpPrompt = "Tool result for ${toolCall.toolName}:\n${result.data}\n\nDo NOT call any tools. Give the user a brief, numbered answer (max 6 steps, ≤20 words each). No XML tags. No preamble."
+                                val followUpPrompt = "Tool result for ${toolCall.toolName}:\n${result.data}\n\nDo NOT call any tools. Give the user a brief, numbered answer (max 6 steps, <=20 words each). No XML tags. No preamble."
 
                                 val newAssistantIndex = threadMessages.size
                                 val newAssistantId = "a$newAssistantIndex"
@@ -431,7 +431,7 @@ fun AppNavHost() {
                                     }
                                 }
                             } else if (preambleText.isNotBlank()) {
-                                // Tool failed but the model gave a direct answer — show it
+                                // Tool failed but the model gave a direct answer - show it
                                 val aidx = threadMessages.indexOfFirst { it.id == assistantId }
                                 if (aidx >= 0) {
                                     threadMessages[aidx] = threadMessages[aidx].copy(text = preambleText)
@@ -638,7 +638,7 @@ fun AppNavHost() {
             )
         }
         composable(Route.Navigation.path) {
-            // Read once on mount — PendingNavigation is single-slot and a
+            // Read once on mount - PendingNavigation is single-slot and a
             // re-entry without a fresh route shouldn't loop on the same
             // (possibly stale) handoff. Re-keying remember on the handoff
             // means a brand-new "Start" tap pushes a fresh engine even if
@@ -651,7 +651,7 @@ fun AppNavHost() {
                     onBack = { navController.popBackStack() },
                 )
             } else {
-                // Process restart or direct deeplink — bounce back to map.
+                // Process restart or direct deeplink - bounce back to map.
                 LaunchedEffect(Unit) { navController.popBackStack() }
             }
         }
@@ -671,20 +671,20 @@ You are Mark, an emergency medical assistant. Your job is to call the correct to
 
 ${toolManager.getToolDescriptions()}
 
-**How to choose a tool — follow this decision tree in order:**
+**How to choose a tool - follow this decision tree in order:**
 
-1. User mentions NOT BREATHING, no pulse, cardiac arrest, or explicitly asks for CPR → call `cpr_instructions`.
-2. User says someone is unresponsive/collapsed/passed out/fainted/won't wake up BUT has NOT confirmed they are not breathing → call `abc_check` first so they can assess Airway-Breathing-Circulation.
-3. After abc_check, if the user reports the person is NOT breathing → THEN call `cpr_instructions`.
-4. Medical question (wound, burn, bleeding, fracture, poisoning, choking, etc.) → call `search_medical_database` with the specific condition as query.
-5. User asks **where** the nearest hospital/pharmacy/AED/etc. **is** (no movement implied) → call `find_nearest` with the matching category.
+1. User mentions NOT BREATHING, no pulse, cardiac arrest, or explicitly asks for CPR -> call `cpr_instructions`.
+2. User says someone is unresponsive/collapsed/passed out/fainted/won't wake up BUT has NOT confirmed they are not breathing -> call `abc_check` first so they can assess Airway-Breathing-Circulation.
+3. After abc_check, if the user reports the person is NOT breathing -> THEN call `cpr_instructions`.
+4. Medical question (wound, burn, bleeding, fracture, poisoning, choking, etc.) -> call `search_medical_database` with the specific condition as query.
+5. User asks **where** the nearest hospital/pharmacy/AED/etc. **is** (no movement implied) -> call `find_nearest` with the matching category.
    Supported categories: hospital, doctor, first_aid, aed, pharmacy, police, fire, shelter, water, toilet, metro, parking_underground, bunker, fuel, supermarket, atm, phone, school, community, worship.
-6. User asks to **go to / get to / take me to / route to** a place — anything that implies movement — → call `route_to`. The destination param accepts either coords ('52.374,4.890') or one of the find_nearest categories. Optional profile param: walk (default), bike, drive.
-7. User asks for their current GPS coordinates → call `get_location`. (It no longer fakes turn-by-turn directions — use route_to for that.)
+6. User asks to **go to / get to / take me to / route to** a place - anything that implies movement - -> call `route_to`. The destination param accepts either coords ('52.374,4.890') or one of the find_nearest categories. Optional profile param: walk (default), bike, drive.
+7. User asks for their current GPS coordinates -> call `get_location`. (It no longer fakes turn-by-turn directions - use route_to for that.)
 
 **Output rules:**
-- Your FIRST response must be the `<tool_call>` block — nothing before it, nothing after it.
-- After the tool returns, reply with a numbered list (max 6 short steps, ≤20 words each). No preamble, no medical jargon.
+- Your FIRST response must be the `<tool_call>` block - nothing before it, nothing after it.
+- After the tool returns, reply with a numbered list (max 6 short steps, <=20 words each). No preamble, no medical jargon.
 
 **Examples:**
 
@@ -694,7 +694,7 @@ Assistant:
 cpr_instructions
 <tool_call>
 
-User: "Someone collapsed and isn't responding — what do I check first?"
+User: "Someone collapsed and isn't responding - what do I check first?"
 Assistant:
 <tool_call>
 abc_check

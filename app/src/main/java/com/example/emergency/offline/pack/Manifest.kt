@@ -25,8 +25,8 @@ enum class RegionType {
 }
 
 /**
- * Per-pack manifest — the `manifest.json` shipped *inside* each region
- * tar.gz (see plan §3). Lists every file in the pack with its sha256
+ * Per-pack manifest - the `manifest.json` shipped *inside* each region
+ * tar.gz (see plan section 3). Lists every file in the pack with its sha256
  * and byte length so [com.example.emergency.offline.download.PackDownloader]
  * can verify the install end-to-end before swapping it in.
  *
@@ -103,7 +103,7 @@ data class PackFile(
 }
 
 /**
- * Remote catalog of available region packs (plan §6). Served from the
+ * Remote catalog of available region packs (plan section 6). Served from the
  * pack hosting endpoint and consumed by the region picker to populate
  * the Browse and Recommended tabs.
  */

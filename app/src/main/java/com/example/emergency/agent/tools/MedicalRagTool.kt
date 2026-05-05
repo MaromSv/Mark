@@ -62,7 +62,7 @@ class MedicalRagTool(private val context: Context) {
         }
     }
     
-    // ── Synonym / related-term map ──────────────────────────────────────
+    // -- Synonym / related-term map --------------------------------------
     // Maps a query keyword to additional search terms so that e.g.
     // "tourniquet" also surfaces Hemorrhage, Laceration, Penetrating trauma.
     private val synonyms: Map<String, List<String>> = mapOf(
@@ -143,7 +143,7 @@ class MedicalRagTool(private val context: Context) {
         return ToolResult(success = true, data = resultText.trim())
     }
 
-    // ── Scoring ──────────────────────────────────────────────────────────
+    // -- Scoring ----------------------------------------------------------
     private fun scoreDocument(
         doc: MedicalDocument,
         rawQuery: String,
@@ -156,7 +156,7 @@ class MedicalRagTool(private val context: Context) {
 
         var score = 0.0
 
-        // Exact full-query match in title → strongest signal
+        // Exact full-query match in title -> strongest signal
         if (titleLower.contains(rawQuery)) score += 30.0
 
         for (term in terms) {
@@ -186,7 +186,7 @@ class MedicalRagTool(private val context: Context) {
         return count
     }
 
-    // ── Excerpt extraction ───────────────────────────────────────────────
+    // -- Excerpt extraction -----------------------------------------------
     // Finds the densest region of matching terms and extracts a window.
     private fun extractBestExcerpt(
         content: String,
@@ -209,7 +209,7 @@ class MedicalRagTool(private val context: Context) {
         }
 
         if (hits.isEmpty()) {
-            // No term found at all — return the opening paragraph
+            // No term found at all - return the opening paragraph
             val end = content.indexOf("\n\n").let { if (it in 1 until maxLength) it else maxLength.coerceAtMost(content.length) }
             return content.substring(0, end).trim() + if (end < content.length) "..." else ""
         }

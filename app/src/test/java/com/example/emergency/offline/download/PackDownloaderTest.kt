@@ -184,7 +184,7 @@ private class ByteArrayHttpClient(
         destFile.parentFile?.mkdirs()
         val from = if (destFile.exists()) destFile.length().toInt() else 0
         if (from > body.size) {
-            // Resume past the end → start over (matches what
+            // Resume past the end -> start over (matches what
             // HttpUrlConnectionClient does when the server ignores Range).
             destFile.delete()
             destFile.writeBytes(body)

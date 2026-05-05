@@ -7,8 +7,8 @@ import java.io.File
 /**
  * Sanity check that `app/src/main/assets/bundled/catalog.json` parses
  * cleanly through [CatalogManifest.parse]. The full [CatalogProvider]
- * needs an Android `Context` to read from `AssetManager` — out of scope
- * for a pure JVM unit test — so we read the file directly from the
+ * needs an Android `Context` to read from `AssetManager` - out of scope
+ * for a pure JVM unit test - so we read the file directly from the
  * source tree instead.
  */
 class BundledCatalogTest {

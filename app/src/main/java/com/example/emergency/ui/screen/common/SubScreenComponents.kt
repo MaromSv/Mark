@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.example.emergency.ui.theme.EmergencyShapes
 import com.example.emergency.ui.theme.EmergencyTheme
 
-// Hardcoded brand colors — never affected by theme
+// Hardcoded brand colors - never affected by theme
 private val MarkNavy = Color(0xFF1E293B)
 private val MarkRed = Color(0xFFEF4444)
 

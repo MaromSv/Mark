@@ -1,16 +1,16 @@
 package com.example.emergency.offline.navigation
 
 /**
- * Decides *when* to surface the next maneuver to the user (plan §8 step 7.5).
+ * Decides *when* to surface the next maneuver to the user (plan section 8 step 7.5).
  *
- * Each travel profile has a "trigger ladder" — a sequence of distance
+ * Each travel profile has a "trigger ladder" - a sequence of distance
  * thresholds at which the upcoming maneuver should be re-announced.
  * Walking gets two triggers (one warning + the imminent prompt); driving
  * on the highway gets four. The scheduler tracks which triggers have
  * already fired for the current step so we don't re-announce the same
- * "In 200 m, …" twice as the user approaches.
+ * "In 200 m, ..." twice as the user approaches.
  *
- * Pure logic — TTS / banner-swap is done by the caller. (TTS is out of
+ * Pure logic - TTS / banner-swap is done by the caller. (TTS is out of
  * scope per the user's "no TTS" instruction; the scheduler still drives
  * the *visual* banner which is what shows imminent maneuvers.)
  *
@@ -19,7 +19,7 @@ package com.example.emergency.offline.navigation
  */
 class ManeuverScheduler(private val profile: NavigationProfile) {
 
-    /** A trigger that just fired — caller swaps banner / records announcement. */
+    /** A trigger that just fired - caller swaps banner / records announcement. */
     data class Fired(
         val stepIndex: Int,
         val trigger: Trigger,
@@ -32,9 +32,9 @@ class ManeuverScheduler(private val profile: NavigationProfile) {
     }
 
     /**
-     * Per-profile ladders. Order matters — far-to-near. Each entry fires
-     * exactly once per step. NOW fires when distanceToStep ≤ 25 m, which
-     * is roughly the GPS noise floor — close enough to "you're at the turn"
+     * Per-profile ladders. Order matters - far-to-near. Each entry fires
+     * exactly once per step. NOW fires when distanceToStep <= 25 m, which
+     * is roughly the GPS noise floor - close enough to "you're at the turn"
      * for the banner swap.
      */
     private val ladder: List<Trigger> = when (profile) {
@@ -56,7 +56,7 @@ class ManeuverScheduler(private val profile: NavigationProfile) {
      * Advance the scheduler for one tick.
      *   * If [currentStepIndex] changed since the last call, the per-step
      *     state resets so the new step's ladder fires from the top.
-     *   * Returns the *deepest* trigger crossed since the last tick — if
+     *   * Returns the *deepest* trigger crossed since the last tick - if
      *     the user blew past the 200 m and 80 m markers in a single GPS
      *     update (sparse fixes / slow tick rate), we report the inner one.
      */
@@ -84,7 +84,7 @@ class ManeuverScheduler(private val profile: NavigationProfile) {
         return Fired(stepIndex = currentStepIndex, trigger = hit)
     }
 
-    /** Resets back to "no triggers fired" — used when the engine reroutes. */
+    /** Resets back to "no triggers fired" - used when the engine reroutes. */
     fun reset() {
         activeStepIndex = -1
         for (i in fired.indices) fired[i] = false
@@ -104,7 +104,7 @@ class ManeuverScheduler(private val profile: NavigationProfile) {
  * Travel profile for the navigation engine. Distinct from BRouter's
  * routing profile (`trekking`/`fastbike`/`car-fast`) because it drives
  * UI behaviour (trigger ladder, off-route threshold, camera tilt), not
- * the routing graph — a user might be cycling on a route originally
+ * the routing graph - a user might be cycling on a route originally
  * planned for walking, and the *navigation* heuristics should adapt.
  */
 enum class NavigationProfile {

@@ -33,7 +33,7 @@ class TarTest {
         assertEquals("""{"a":1}""", java.io.File(dest, "manifest.json").readText())
         assertEquals(1500, java.io.File(dest, "routing/E0_N50.rd5").length())
         assertEquals(513, java.io.File(dest, "tiles.mbtiles").length())
-        // The 1500-byte body should round-trip exactly — no padding leak.
+        // The 1500-byte body should round-trip exactly - no padding leak.
         val rd5 = java.io.File(dest, "routing/E0_N50.rd5").readBytes()
         for (i in 0 until 1500) {
             assertEquals(i.toByte().toInt() and 0x7F, rd5[i].toInt() and 0xFF)

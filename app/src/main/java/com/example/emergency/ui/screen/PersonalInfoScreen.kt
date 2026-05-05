@@ -286,7 +286,7 @@ private fun PrivacyStrip() {
                 withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.Medium)) {
                     append("Stays on your device. ")
                 }
-                append("Mark uses these fields silently to give you better advice — they're never sent anywhere.")
+                append("Mark uses these fields silently to give you better advice - they're never sent anywhere.")
             },
             style = typography.helper.copy(fontSize = 12.sp, lineHeight = 18.sp),
             color = colors.textDim,

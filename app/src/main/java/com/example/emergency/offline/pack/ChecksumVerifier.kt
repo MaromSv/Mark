@@ -5,10 +5,10 @@ import java.io.InputStream
 import java.security.MessageDigest
 
 /**
- * SHA-256 verification helpers for downloaded packs (plan §8 step 4).
+ * SHA-256 verification helpers for downloaded packs (plan section 8 step 4).
  *
  * Two scopes:
- *   * **Tarball-level**: the catalog (plan §6) ships one sha256 per pack
+ *   * **Tarball-level**: the catalog (plan section 6) ships one sha256 per pack
  *     URL; verifying that against the bytes-on-disk catches transport
  *     corruption and CDN/repo tampering before extraction.
  *   * **File-level**: the per-pack `manifest.json` (see [PackManifest])
@@ -23,7 +23,7 @@ import java.security.MessageDigest
  */
 object ChecksumVerifier {
 
-    /** Result of a verification attempt — sealed so callers must handle each case. */
+    /** Result of a verification attempt - sealed so callers must handle each case. */
     sealed class Result {
         data object Ok : Result()
         data class Mismatch(val path: String, val expected: String, val actual: String) : Result()
@@ -51,7 +51,7 @@ object ChecksumVerifier {
 
     /**
      * Verifies a single tarball's bytes match [expectedSha256]. Used right
-     * after the download finishes and *before* extraction — a corrupt tarball
+     * after the download finishes and *before* extraction - a corrupt tarball
      * never touches the on-disk pack tree.
      */
     fun verifyTarball(tarball: File, expectedSha256: String): Result {
@@ -66,7 +66,7 @@ object ChecksumVerifier {
 
     /**
      * Verifies every file listed in [manifest] exists under [packRoot] with
-     * the expected size and sha256. Returns the first failure encountered —
+     * the expected size and sha256. Returns the first failure encountered -
      * one bad file is a bad install regardless of what comes after.
      */
     fun verifyPack(packRoot: File, manifest: PackManifest): Result {

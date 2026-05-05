@@ -2,15 +2,15 @@ package com.example.emergency.offline.pack
 
 /**
  * Picks catalog entries that are useful for a given GPS location
- * (plan §8 step 5, "Recommended" tab).
+ * (plan section 8 step 5, "Recommended" tab).
  *
  * Strategy: filter to packs whose [BoundingBox] contains the point, then
- * sort by area ascending — smaller bbox = more specific suggestion.
+ * sort by area ascending - smaller bbox = more specific suggestion.
  * "Netherlands" beats "Europe" when both cover Amsterdam; "Randstad"
  * beats both. Cap to [maxResults] so the picker doesn't dump 50 entries
  * on a user standing in central Tokyo.
  *
- * Pure function; no Android imports — easy to unit-test.
+ * Pure function; no Android imports - easy to unit-test.
  */
 object RegionResolver {
 
@@ -32,7 +32,7 @@ object RegionResolver {
     }
 
     /**
-     * Returns the single best-matching pack — the smallest bbox that
+     * Returns the single best-matching pack - the smallest bbox that
      * covers the point, or null if no pack does. Convenient for the
      * one-tap "Get [Country]" hero card.
      */
@@ -56,13 +56,13 @@ object RegionResolver {
         installed.any { it.bbox.contains(lat, lon) }
 
     /**
-     * For an A→B route request, returns the catalog entries the user
+     * For an A->B route request, returns the catalog entries the user
      * needs to install for both endpoints to be inside the union of
      * installed bboxes. If the user is already covered for both endpoints
      * the list is empty.
      *
      * If neither the catalog nor the installed set covers an endpoint,
-     * that endpoint contributes nothing — the caller still gets an empty
+     * that endpoint contributes nothing - the caller still gets an empty
      * list, but the [OfflineRouter] pre-flight reports the uncovered
      * endpoint via [com.example.emergency.offline.routing.RouteOutcome.OutsideDownloadedRegion.uncoveredEndpoints]
      * so the UI can phrase the message honestly ("we don't have a pack

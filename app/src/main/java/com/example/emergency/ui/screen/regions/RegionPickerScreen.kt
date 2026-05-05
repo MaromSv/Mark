@@ -65,26 +65,26 @@ import com.example.emergency.ui.theme.EmergencyShapes
 import com.example.emergency.ui.theme.EmergencyTheme
 
 /**
- * Region picker + storage manager (plan §8 step 5). Single screen, four
+ * Region picker + storage manager (plan section 8 step 5). Single screen, four
  * tabs:
- *   * **Recommended** — top GPS-covering catalog entries via
+ *   * **Recommended** - top GPS-covering catalog entries via
  *     [RegionResolver].
- *   * **Browse** — flat list of every available pack from the catalog.
- *     The richer continent → country → state tree from the plan is
+ *   * **Browse** - flat list of every available pack from the catalog.
+ *     The richer continent -> country -> state tree from the plan is
  *     deferred until we have more than ~four countries to show.
- *   * **Custom** — numeric W/S/E/N inputs + live size estimate from the
+ *   * **Custom** - numeric W/S/E/N inputs + live size estimate from the
  *     bundled [DensityGrid]. The plan's draggable-rectangle map is heavy
- *     MapLibre work; the picker still hits the §3 ≤ 800 MB cap and the
- *     ±15 % size promise via the form.
- *   * **Storage** — installed packs with delete-with-confirm, total
+ *     MapLibre work; the picker still hits the section 3 <= 800 MB cap and the
+ *     +/-15 % size promise via the form.
+ *   * **Storage** - installed packs with delete-with-confirm, total
  *     bytes used.
  *
  * State sources (process-wide singletons):
- *   * [CatalogProvider] — what's available to download.
- *   * [RegionStore]     — what's installed right now.
- *   * [PackDownloader]  — per-pack live progress.
+ *   * [CatalogProvider] - what's available to download.
+ *   * [RegionStore]     - what's installed right now.
+ *   * [PackDownloader]  - per-pack live progress.
  *
- * The picker doesn't own any persistent state of its own — everything
+ * The picker doesn't own any persistent state of its own - everything
  * comes from those flows so background downloads stay live across
  * navigation.
  */
@@ -201,7 +201,7 @@ private fun TabStrip(
     }
 }
 
-// ─── Tabs ────────────────────────────────────────────────────────────────────
+// --- Tabs --------------------------------------------------------------------
 
 @Composable
 private fun RecommendedTab(
@@ -338,7 +338,7 @@ private fun CustomTab(
         Spacer(Modifier.height(6.dp))
         Text(
             text = "Coordinates in WGS84 degrees. The on-device density grid " +
-                "estimates pack size to ±15 %% — tight urban bboxes can run larger.",
+                "estimates pack size to +/-15 %% - tight urban bboxes can run larger.",
             style = typography.helper.copy(fontSize = 12.sp, lineHeight = 16.sp),
             color = colors.textDim,
         )
@@ -359,10 +359,10 @@ private fun CustomTab(
 
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "Custom packs are not yet downloadable — the build pipeline " +
+            text = "Custom packs are not yet downloadable - the build pipeline " +
                 "publishes country/metro packs only. The estimator above is wired " +
                 "so the picker UI hits its size-cap behaviour today; downloadable " +
-                "custom bboxes land alongside the on-demand build worker (plan §10).",
+                "custom bboxes land alongside the on-demand build worker (plan section 10).",
             style = typography.helper.copy(fontSize = 12.sp, lineHeight = 18.sp),
             color = colors.textDim,
         )
@@ -430,7 +430,7 @@ private fun StorageTab(
     }
 }
 
-// ─── Row composables ─────────────────────────────────────────────────────────
+// --- Row composables ---------------------------------------------------------
 
 @Composable
 private fun CatalogRow(
@@ -459,8 +459,8 @@ private fun CatalogRow(
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = "${entry.type.name.lowercase().replaceFirstChar { it.uppercase() }} · " +
-                        "${entry.sizeBytes / 1024 / 1024} MB · v${entry.version}",
+                    text = "${entry.type.name.lowercase().replaceFirstChar { it.uppercase() }}  -  " +
+                        "${entry.sizeBytes / 1024 / 1024} MB  -  v${entry.version}",
                     style = typography.helper.copy(fontSize = 12.sp),
                     color = colors.textDim,
                 )
@@ -517,7 +517,7 @@ private fun ActionButton(
             ButtonSpec(
                 if (state.bytesTotal > 0)
                     "${(100L * state.bytesDone / state.bytesTotal).toInt()}%"
-                else "…",
+                else "...",
                 onCancel, colors.surface, colors.text, false,
             )
         state is DownloadState.Verifying ->
@@ -587,7 +587,7 @@ private fun InstalledRow(pack: RegionPack, onDelete: () -> Unit) {
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = "${pack.sizeBytes / 1024 / 1024} MB · installed ${shortDate(pack.installedAt)}",
+                text = "${pack.sizeBytes / 1024 / 1024} MB  -  installed ${shortDate(pack.installedAt)}",
                 style = typography.helper.copy(fontSize = 12.sp),
                 color = colors.textDim,
             )
@@ -631,12 +631,12 @@ private fun SizeBanner(
         else -> colors.text
     }
     val message = when {
-        !gridReady -> "Density grid not loaded — size estimate unavailable."
+        !gridReady -> "Density grid not loaded - size estimate unavailable."
         !parseOk -> "Enter four numeric WGS84 coordinates to estimate size."
-        overHardCap -> "≈$sizeMb MB — over the $HARD_CAP_MB MB cap. Trim the bbox to download."
-        overSoftWarn -> "≈$sizeMb MB — large pack. Consider trimming below $SOFT_WARN_MB MB."
-        sizeMb <= 0 -> "≈<1 MB — tiny bbox; estimator may underreport. Actual download may be larger."
-        else -> "≈$sizeMb MB — fits the $HARD_CAP_MB MB cap. Estimate is ±15 %%."
+        overHardCap -> "~=$sizeMb MB - over the $HARD_CAP_MB MB cap. Trim the bbox to download."
+        overSoftWarn -> "~=$sizeMb MB - large pack. Consider trimming below $SOFT_WARN_MB MB."
+        sizeMb <= 0 -> "~=<1 MB - tiny bbox; estimator may underreport. Actual download may be larger."
+        else -> "~=$sizeMb MB - fits the $HARD_CAP_MB MB cap. Estimate is +/-15 %%."
     }
 
     Box(
@@ -696,7 +696,7 @@ private fun EmptyState(icon: ImageVector, title: String, body: String) {
     }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// --- Helpers -----------------------------------------------------------------
 
 private const val SOFT_WARN_MB = 250L
 private const val HARD_CAP_MB = 800L
@@ -740,12 +740,12 @@ private fun shortDate(epochMs: Long): String {
 
 @Suppress("FunctionName")
 private fun PaddingValuesAll(
-    top: Int,
-    bottom: Int,
-    horizontal: Int,
+    top: androidx.compose.ui.unit.Dp,
+    bottom: androidx.compose.ui.unit.Dp,
+    horizontal: androidx.compose.ui.unit.Dp,
 ) = androidx.compose.foundation.layout.PaddingValues(
-    start = horizontal.dp,
-    end = horizontal.dp,
-    top = top.dp,
-    bottom = bottom.dp,
+    start = horizontal,
+    end = horizontal,
+    top = top,
+    bottom = bottom,
 )

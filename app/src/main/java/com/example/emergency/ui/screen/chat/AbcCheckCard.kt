@@ -77,7 +77,7 @@ fun AbcCheckCard(
                     color = Color.White,
                 )
                 Text(
-                    text = "Airway · Breathing · Circulation",
+                    text = "Airway  -  Breathing  -  Circulation",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Normal,
                     color = Color.White.copy(alpha = 0.85f),

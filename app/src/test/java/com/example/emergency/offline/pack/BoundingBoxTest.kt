@@ -55,17 +55,17 @@ class BoundingBoxTest {
 
     @Test
     fun areaKm2RoughlyMatchesKnownReferences() {
-        // The Netherlands is ~41,500 km² in reality but its bbox is much
+        // The Netherlands is ~41,500 km^2 in reality but its bbox is much
         // bigger because it covers the IJsselmeer and the spill into BE/DE.
-        // The bbox area should still land near the published ~50,000 km²
+        // The bbox area should still land near the published ~50,000 km^2
         // figure (Wikipedia "Netherlands" infobox bbox area).
         val nl = BoundingBox(3.0, 50.5, 7.5, 53.7)
         val area = nl.areaKm2()
-        // ±15 % of 100,000 km² (the bbox is wider than the country).
+        // +/-15 % of 100,000 km^2 (the bbox is wider than the country).
         assertTrue("nl bbox area = $area", area in 80_000.0..120_000.0)
 
-        // A 1°×1° box at the equator ≈ 12,391.7 km² with the equirectangular
-        // approximation we use (mid-lat = 0.5° → cos ≈ 0.99996).
+        // A 1 degx1 deg box at the equator ~= 12,391.7 km^2 with the equirectangular
+        // approximation we use (mid-lat = 0.5 deg -> cos ~= 0.99996).
         val equator = BoundingBox(0.0, 0.0, 1.0, 1.0)
         assertEquals(12_391.67, equator.areaKm2(), 0.5)
     }

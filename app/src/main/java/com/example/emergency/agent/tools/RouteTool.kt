@@ -24,28 +24,28 @@ import java.io.File
 import kotlin.coroutines.resume
 
 /**
- * Real routing for the chat agent (plan §8 step 8). Replaces the
- * hardcoded "shelter" branch that used to live in [GpsLocationTool] —
+ * Real routing for the chat agent (plan section 8 step 8). Replaces the
+ * hardcoded "shelter" branch that used to live in [GpsLocationTool] -
  * destinations are routed through [OfflineRouter] against the actually-
  * installed packs, with honest [RouteOutcome] error handling.
  *
  * **Destination accepted forms** (parsed in this order):
- *   1. `"<lat>,<lon>"` — explicit coordinates, e.g. `"52.374,4.890"`.
- *   2. A POI category supported by [PoiRepository] / [FindNearestTool] —
+ *   1. `"<lat>,<lon>"` - explicit coordinates, e.g. `"52.374,4.890"`.
+ *   2. A POI category supported by [PoiRepository] / [FindNearestTool] -
  *      we resolve it to the nearest matching POI and route there. Most
  *      common LLM ask: "take me to the nearest hospital".
  *
  * Geocoded place names (e.g. "Anne Frank House") are **not supported**
- * — the app has no geocoder. The LLM is instructed in the system prompt
+ * - the app has no geocoder. The LLM is instructed in the system prompt
  * to either pass coords or pick a category from the catalog.
  *
  * **Profile param**: `walk` (default) | `bike` | `drive`. Maps to
  * BRouter's `trekking` / `fastbike` / `car-fast`.
  *
  * **Result JSON shape**: includes `name`/`category`/`lat`/`lon` so the
- * existing chat→map handoff (`AppNavHost.parseFindNearestDestination`)
+ * existing chat->map handoff (`AppNavHost.parseFindNearestDestination`)
  * picks it up unchanged and renders the polyline + lets the user tap
- * "Start navigation" — same UX as `find_nearest`, plus distance / ETA /
+ * "Start navigation" - same UX as `find_nearest`, plus distance / ETA /
  * step count for the LLM's follow-up summary.
  */
 class RouteTool(private val context: Context) {
@@ -74,7 +74,7 @@ class RouteTool(private val context: Context) {
                 "Unknown profile '$profileName'. Use walk, bike, or drive.",
             )
 
-        // Resolve destination → (name, category, lat, lon).
+        // Resolve destination -> (name, category, lat, lon).
         val dest = resolveDestination(rawDestination)
             ?: return ToolResult(
                 false, "",
@@ -86,7 +86,7 @@ class RouteTool(private val context: Context) {
         val origin = getCurrentLocation()
             ?: return ToolResult(
                 false, "",
-                "GPS not ready — can't route without a current position.",
+                "GPS not ready - can't route without a current position.",
             )
 
         // Pull installed packs + catalog + bundled brouter profiles dir.
@@ -111,7 +111,7 @@ class RouteTool(private val context: Context) {
     private fun formatOutcome(dest: ResolvedDestination, outcome: RouteOutcome): ToolResult =
         Companion.formatOutcome(dest, outcome)
 
-    // ─── Destination resolution ──────────────────────────────────────────
+    // --- Destination resolution ------------------------------------------
 
     internal data class ResolvedDestination(
         val name: String,
@@ -150,7 +150,7 @@ class RouteTool(private val context: Context) {
         private const val MAX_STEPS_IN_RESULT = 5
 
         /**
-         * Pure result formatter — no Android dependencies. Lives on the
+         * Pure result formatter - no Android dependencies. Lives on the
          * companion so tests can call it without instantiating the tool.
          */
         internal fun formatOutcome(dest: ResolvedDestination, outcome: RouteOutcome): ToolResult =
@@ -231,7 +231,7 @@ class RouteTool(private val context: Context) {
             "fuel", "supermarket", "atm", "phone", "school", "community", "worship",
         )
 
-        // Trimmed copy of FindNearestTool.aliases — keeps the two tools in
+        // Trimmed copy of FindNearestTool.aliases - keeps the two tools in
         // sync without a circular dep. Update both if a new alias lands.
         private val CATEGORY_ALIASES = mapOf(
             "defibrillator" to "aed",
@@ -248,7 +248,7 @@ class RouteTool(private val context: Context) {
         )
     }
 
-    // ─── GPS helper (mirrors FindNearestTool) ────────────────────────────
+    // --- GPS helper (mirrors FindNearestTool) ----------------------------
 
     private suspend fun getCurrentLocation(): Location? {
         val hasFine = ContextCompat.checkSelfPermission(

@@ -15,18 +15,18 @@ class AbcCheckTool {
         val instructions = """
             ABC primary survey:
 
-            A — Airway:
+            A - Airway:
             - Tilt head back gently, lift chin with two fingers.
             - Only remove visible obstructions. Do not sweep blindly.
 
-            B — Breathing:
+            B - Breathing:
             - Look, listen, feel for 10 seconds. No longer.
             - Gasping is not normal breathing. If unsure, treat as not breathing and start CPR.
 
-            C — Circulation:
+            C - Circulation:
             - Skin colour: pale, blue, or grey is a warning sign.
             - Stop major bleeding with firm direct pressure.
-            - Trained: feel carotid pulse — but do not delay CPR.
+            - Trained: feel carotid pulse - but do not delay CPR.
 
             If breathing is absent or in doubt, start CPR immediately and call 112.
         """.trimIndent()
