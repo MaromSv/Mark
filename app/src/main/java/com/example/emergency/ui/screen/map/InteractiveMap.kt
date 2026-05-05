@@ -328,6 +328,15 @@ fun InteractiveMap(
         mapView.getMapAsync { map ->
             Log.d(TAG, "MapboxMap ready; setting style")
             mapboxMap = map
+            // Hide the MapLibre logo (their library branding, removable
+            // under MapLibre's BSD license). Keep the attribution button -
+            // OSM's ODbL data license requires attribution to OpenStreetMap
+            // contributors, and the (i) icon is the smallest, most standard
+            // way to provide it.
+            map.uiSettings.apply {
+                isLogoEnabled = false
+                isAttributionEnabled = true
+            }
             // Open at city-level zoom on whatever location we currently have
             // (Dam Square fallback). The LaunchedEffect below will animate to
             // the real GPS fix as soon as it resolves.
