@@ -353,6 +353,32 @@ fun InteractiveMap(
             map.addOnMapClickListener { latLng ->
                 val pt = map.projection.toScreenLocation(latLng)
                 val touchRect = RectF(pt.x - 30, pt.y - 30, pt.x + 30, pt.y + 30)
+
+                // Cluster tap first: query the cluster circles. If hit,
+                // animate to the zoom level where this cluster breaks apart
+                // (MapLibre's getClusterExpansionZoom gives the precise
+                // value; fall back to current+2 if it isn't available).
+                val clusterHits = map.queryRenderedFeatures(touchRect, "clusters-layer")
+                if (clusterHits.isNotEmpty()) {
+                    val cluster = clusterHits[0]
+                    val coord = cluster.geometry() as? Point
+                    if (coord != null) {
+                        val source = map.style?.getSourceAs<GeoJsonSource>("pois-source")
+                        val expansionZoom = runCatching {
+                            source?.getClusterExpansionZoom(cluster)?.toDouble()
+                        }.getOrNull() ?: (map.cameraPosition.zoom + 2.0)
+                        map.animateCamera(
+                            CameraUpdateFactory.newLatLngZoom(
+                                LatLng(coord.latitude(), coord.longitude()),
+                                expansionZoom.coerceIn(2.0, 18.0),
+                            ),
+                            400,
+                        )
+                    }
+                    return@addOnMapClickListener true
+                }
+
+                // Otherwise individual POI tap.
                 val hits = map.queryRenderedFeatures(touchRect, "pois-layer")
                 if (hits.isNotEmpty()) {
                     val f = hits[0]
@@ -506,6 +532,59 @@ fun InteractiveMap(
                 .align(Alignment.TopCenter)
                 .padding(top = 64.dp),
         )
+
+        // First-launch nudge: if no map packs are installed, surface a
+        // prominent banner pointing the user at the picker. The cloud icon
+        // in the top bar is easy to miss for first-time users; this banner
+        // makes the "you need to download a region first" step explicit.
+        // Auto-hides as soon as any pack is installed.
+        AnimatedVisibility(
+            visible = installedPacks.isEmpty() &&
+                bootstrapStatus !is OfflineBootstrap.Status.Staging,
+            enter = slideInVertically { -it } + fadeIn(),
+            exit = slideOutVertically { -it } + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 110.dp, start = 16.dp, end = 16.dp),
+        ) {
+            NoPacksBanner(onOpenRegions = onOpenRegions)
+        }
+    }
+}
+
+@Composable
+private fun NoPacksBanner(onOpenRegions: () -> Unit) {
+    val colors = EmergencyTheme.colors
+    val typography = EmergencyTheme.typography
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(EmergencyShapes.hero)
+            .background(colors.text)
+            .clickable(onClick = onOpenRegions)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Icon(
+            imageVector = androidx.compose.material.icons.Icons.Outlined.CloudDownload,
+            contentDescription = null,
+            tint = colors.bg,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Pick a region to use offline",
+                style = typography.listItem.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+                color = colors.bg,
+            )
+            Text(
+                text = "Tap to download maps + routing for your area",
+                style = typography.helper.copy(fontSize = 12.sp),
+                color = colors.bg.copy(alpha = 0.75f),
+            )
+        }
     }
 }
 
@@ -773,8 +852,12 @@ private fun addPoiLayer(context: Context, style: Style) {
 
     val options = GeoJsonOptions()
         .withCluster(true)
-        .withClusterMaxZoom(13)
-        .withClusterRadius(60)
+        // Cluster up to z15 (was 13) so dense urban POIs stay grouped until
+        // the user is genuinely close enough to read individual icons.
+        // 50 px radius (was 60) makes single high-density city clusters
+        // break apart sooner than continent-spanning ones.
+        .withClusterMaxZoom(15)
+        .withClusterRadius(50)
     val source = GeoJsonSource("pois-source", options)
     style.addSource(source)
 
@@ -841,18 +924,23 @@ private fun addPoiLayer(context: Context, style: Style) {
     val unclustered = Expression.not(Expression.has("point_count"))
     val clustered = Expression.has("point_count")
 
-    // Cluster bubble: blue circle that grows with the count.
+    // Cluster bubble: blue circle that grows with the count. Bumped the
+    // base radius (was 16) so single-digit clusters stay visibly tappable
+    // when zoomed out across a country, and stops at higher counts so
+    // urban hot-spots clearly stand out from rural ones.
     val clusterCircle = CircleLayer("clusters-layer", "pois-source").withProperties(
         PropertyFactory.circleColor("#1E88E5"),
         PropertyFactory.circleStrokeColor("#FFFFFF"),
-        PropertyFactory.circleStrokeWidth(2f),
+        PropertyFactory.circleStrokeWidth(2.5f),
+        PropertyFactory.circleOpacity(0.92f),
         PropertyFactory.circleRadius(
             Expression.step(
                 Expression.toNumber(Expression.get("point_count")),
-                Expression.literal(16f),
-                Expression.stop(50, 22),
-                Expression.stop(200, 28),
-                Expression.stop(1000, 34),
+                Expression.literal(20f),
+                Expression.stop(20, 24),
+                Expression.stop(100, 30),
+                Expression.stop(500, 36),
+                Expression.stop(2000, 42),
             )
         ),
     )
@@ -861,7 +949,7 @@ private fun addPoiLayer(context: Context, style: Style) {
 
     val clusterCount = SymbolLayer("clusters-count-layer", "pois-source").withProperties(
         PropertyFactory.textField("{point_count_abbreviated}"),
-        PropertyFactory.textSize(12f),
+        PropertyFactory.textSize(14f),
         PropertyFactory.textColor("#FFFFFF"),
         PropertyFactory.textAllowOverlap(true),
         PropertyFactory.textIgnorePlacement(true),
