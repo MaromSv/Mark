@@ -26,6 +26,9 @@
 set -euo pipefail
 
 AREA="${1:-planet}"
+# Planetiler's --area expects a leaf slug (planet, netherlands, california),
+# not a Geofabrik path prefix. Strip directories.
+PLANETILER_AREA="${AREA##*/}"
 DEFAULT_OUT="$(dirname "$0")/../../app/src/main/assets/bundled/skeleton.mbtiles"
 OUT="${2:-$DEFAULT_OUT}"
 
@@ -78,7 +81,7 @@ echo "  This is the Tier-0 global basemap; per-region detail comes from packs."
 
 java "-Xmx${XMX}" -jar "${PLANETILER_JAR}" \
     --download \
-    --area="${AREA}" \
+    --area="${PLANETILER_AREA}" \
     --output="${OUT}" \
     --force \
     --exclude-layers=building \

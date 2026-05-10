@@ -23,7 +23,13 @@
 set -euo pipefail
 
 AREA="${1:-netherlands}"
-DEFAULT_OUT="$(dirname "$0")/.cache/${AREA}.mbtiles"
+# Planetiler's --area expects the leaf country/state slug (e.g. "netherlands"
+# or "california"), not Geofabrik's full path ("europe/netherlands"). Strip
+# any directory prefix before passing it on. Keep AREA unchanged for our
+# own cache paths so different countries don't collide on a shared
+# 'work-netherlands' dir.
+PLANETILER_AREA="${AREA##*/}"
+DEFAULT_OUT="$(dirname "$0")/.cache/${PLANETILER_AREA}.mbtiles"
 OUT="${2:-$DEFAULT_OUT}"
 
 PLANETILER_VERSION="0.8.4"
@@ -31,7 +37,9 @@ PLANETILER_URL="https://github.com/onthegomap/planetiler/releases/download/v${PL
 
 CACHE_DIR="$(dirname "$0")/.cache"
 PLANETILER_JAR="${CACHE_DIR}/planetiler-${PLANETILER_VERSION}.jar"
-WORK_DIR="${CACHE_DIR}/work-${AREA}"
+# Replace slashes in the cache path so 'europe/netherlands' doesn't try to
+# create a 'work-europe' subdir.
+WORK_DIR="${CACHE_DIR}/work-${AREA//\//-}"
 
 mkdir -p "${CACHE_DIR}" "${WORK_DIR}"
 mkdir -p "$(dirname "${OUT}")"
@@ -70,11 +78,11 @@ fi
 # override via PLANETILER_XMX env var.
 XMX="${PLANETILER_XMX:-3g}"
 
-echo "Building ${OUT} from area=${AREA} (Xmx=${XMX})…"
+echo "Building ${OUT} from area=${AREA} (planetiler arg: ${PLANETILER_AREA}, Xmx=${XMX})..."
 
 java "-Xmx${XMX}" -jar "${PLANETILER_JAR}" \
     --download \
-    --area="${AREA}" \
+    --area="${PLANETILER_AREA}" \
     --output="${OUT}" \
     --force \
     --exclude-layers=building \
