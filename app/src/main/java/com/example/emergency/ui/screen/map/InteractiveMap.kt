@@ -882,12 +882,15 @@ private fun addPoiLayer(context: Context, style: Style) {
 
     val options = GeoJsonOptions()
         .withCluster(true)
-        // Cluster up to z15 (was 13) so dense urban POIs stay grouped until
-        // the user is genuinely close enough to read individual icons.
-        // 50 px radius (was 60) makes single high-density city clusters
-        // break apart sooner than continent-spanning ones.
-        .withClusterMaxZoom(15)
-        .withClusterRadius(50)
+        // Cluster up to z17 - keeps numbered badges visible at very high
+        // zoom too, so even at street level a cluster of overlapping POIs
+        // (e.g. 3 pharmacies in one block) shows as a tappable count
+        // rather than overlapping dots. Tap one -> getClusterExpansionZoom
+        // animates to where they spread apart.
+        .withClusterMaxZoom(17)
+        // 60 px (was 50) makes clusters merge a bit more aggressively at
+        // every zoom so the user always sees groupings, not dot soup.
+        .withClusterRadius(60)
     val source = GeoJsonSource("pois-source", options)
     style.addSource(source)
 
@@ -961,16 +964,18 @@ private fun addPoiLayer(context: Context, style: Style) {
     val clusterCircle = CircleLayer("clusters-layer", "pois-source").withProperties(
         PropertyFactory.circleColor("#1E88E5"),
         PropertyFactory.circleStrokeColor("#FFFFFF"),
-        PropertyFactory.circleStrokeWidth(2.5f),
-        PropertyFactory.circleOpacity(0.92f),
+        PropertyFactory.circleStrokeWidth(3f),
+        PropertyFactory.circleOpacity(0.95f),
+        // Bigger across the board so the badges read as "tappable group"
+        // even at country zoom. Was 20/24/30/36/42, now 26/32/40/48/56.
         PropertyFactory.circleRadius(
             Expression.step(
                 Expression.toNumber(Expression.get("point_count")),
-                Expression.literal(20f),
-                Expression.stop(20, 24),
-                Expression.stop(100, 30),
-                Expression.stop(500, 36),
-                Expression.stop(2000, 42),
+                Expression.literal(26f),
+                Expression.stop(20, 32),
+                Expression.stop(100, 40),
+                Expression.stop(500, 48),
+                Expression.stop(2000, 56),
             )
         ),
     )
@@ -979,7 +984,7 @@ private fun addPoiLayer(context: Context, style: Style) {
 
     val clusterCount = SymbolLayer("clusters-count-layer", "pois-source").withProperties(
         PropertyFactory.textField("{point_count_abbreviated}"),
-        PropertyFactory.textSize(14f),
+        PropertyFactory.textSize(16f),
         PropertyFactory.textColor("#FFFFFF"),
         PropertyFactory.textAllowOverlap(true),
         PropertyFactory.textIgnorePlacement(true),
