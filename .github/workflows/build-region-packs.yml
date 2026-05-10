@@ -1,0 +1,182 @@
+# Builds region packs and publishes them to a GitHub Release.
+#
+# How to run:
+#   1. Go to the Actions tab in GitHub
+#   2. Pick "Build region packs" on the left
+#   3. Click "Run workflow" (top-right green button)
+#   4. Optionally edit the `regions` input — defaults to "nl,monaco" for a
+#      quick smoke test. Set it to "all" to build every region in
+#      scripts/build-pack/regions.json.
+#   5. Click the green "Run workflow" button at the bottom of the popup.
+#
+# What it does:
+#   - Resolves `regions` against scripts/build-pack/regions.json.
+#   - For each region: runs scripts/build-pack/build.sh in parallel (up to
+#     20 concurrent jobs on the free tier), uploads the resulting tarball
+#     directly to the `packs-latest` release.
+#   - After every region build finishes, regenerates app/src/main/assets/
+#     bundled/catalog.json from whatever's actually on the release, and
+#     commits it back to the repo.
+#
+# After the workflow finishes:
+#   - Tarballs are at https://github.com/<owner>/<repo>/releases/tag/packs-latest
+#   - catalog.json reflects every successfully-built region
+#   - Users running an APK with the in-app catalog refresh wired (Phase A
+#     task 4) see new regions on next launch — no app update needed.
+#
+# Required one-time repo setup:
+#   - Settings → Actions → General → Workflow permissions: "Read and
+#     write permissions". Lets the workflow upload release assets and
+#     commit catalog.json back.
+#   - A release tagged `packs-latest` must exist (create an empty one
+#     once via the Releases UI; the workflow uploads assets into it).
+
+name: Build region packs
+
+on:
+  workflow_dispatch:
+    inputs:
+      regions:
+        description: 'Comma-separated region ids, or "all" for everything in regions.json. Skips entries with skipBuild=true.'
+        default: 'nl,monaco'
+        required: true
+      version:
+        description: 'Pack version number — bump to force a rebuild with fresh OSM data.'
+        default: '1'
+        required: true
+      release_tag:
+        description: 'GitHub Release tag to upload tarballs to.'
+        default: 'packs-latest'
+        required: true
+
+permissions:
+  contents: write   # push catalog.json + upload release assets
+
+jobs:
+  resolve-regions:
+    runs-on: ubuntu-latest
+    outputs:
+      regions: ${{ steps.pick.outputs.regions }}
+      count: ${{ steps.pick.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve region list
+        id: pick
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, sys
+          requested = "${{ inputs.regions }}".strip()
+          with open("scripts/build-pack/regions.json") as f:
+              catalog = json.load(f)
+          all_regions = [r for r in catalog["regions"]
+                         if isinstance(r, dict) and not r.get("skipBuild")]
+          if requested.lower() == "all":
+              picked = [r["id"] for r in all_regions]
+          else:
+              wanted = {x.strip() for x in requested.split(",") if x.strip()}
+              known = {r["id"] for r in all_regions}
+              skipped = wanted - known
+              if skipped:
+                  print(f"::warning::Unknown / skipBuild region ids ignored: {sorted(skipped)}", file=sys.stderr)
+              picked = [r["id"] for r in all_regions if r["id"] in wanted]
+          if not picked:
+              print("::error::No buildable regions matched.", file=sys.stderr)
+              sys.exit(1)
+          out = json.dumps(picked)
+          print(f"Resolved {len(picked)} regions: {picked[:8]}{'…' if len(picked) > 8 else ''}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as gh:
+              gh.write(f"regions={out}\n")
+              gh.write(f"count={len(picked)}\n")
+          PY
+
+  build:
+    needs: resolve-regions
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false   # one failed region shouldn't kill the rest
+      max-parallel: 20   # GitHub free-tier concurrent-job ceiling
+      matrix:
+        region: ${{ fromJSON(needs.resolve-regions.outputs.regions) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free up runner disk
+        # Default ubuntu-latest images carry ~25 GB of pre-installed tooling
+        # we don't need (Android SDK, Haskell, dotnet, …). Strip them to free
+        # ~15 GB for Planetiler scratch.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/.ghcup /usr/local/share/boost
+          df -h
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install osmium-tool
+        run: sudo apt-get update -qq && sudo apt-get install -yq osmium-tool
+
+      - name: Build pack ${{ matrix.region }}
+        env:
+          PLANETILER_XMX: '5g'   # ubuntu-latest has 7 GB RAM
+        run: |
+          set -euo pipefail
+          bash scripts/build-pack/build.sh "${{ matrix.region }}" "${{ inputs.version }}"
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TARBALL="scripts/build-pack/dist/${{ matrix.region }}-v${{ inputs.version }}.tar.gz"
+          ls -lh "$TARBALL"
+          # --clobber replaces an existing asset so re-runs don't error.
+          gh release upload "${{ inputs.release_tag }}" "$TARBALL" --clobber
+
+  publish-catalog:
+    needs: [resolve-regions, build]
+    if: always()   # regenerate even if some region builds failed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need history to push back
+
+      - name: Download every tarball from the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # Robust against partial workflow runs — pull whatever the release
+          # currently has, even if this run only built a subset.
+          gh release download "${{ inputs.release_tag }}" --dir dist --pattern '*.tar.gz' || true
+          ls -lh dist/ | head -20
+          echo "Total tarballs: $(ls dist/*.tar.gz 2>/dev/null | wc -l)"
+
+      - name: Regenerate catalog.json
+        run: |
+          set -euo pipefail
+          URL_BASE="https://github.com/${{ github.repository }}/releases/download/${{ inputs.release_tag }}"
+          python3 scripts/build-pack/regenerate-catalog.py \
+              --tarball-dir dist \
+              --url-base "$URL_BASE" \
+              --output app/src/main/assets/bundled/catalog.json
+
+      - name: Commit + push catalog
+        run: |
+          set -euo pipefail
+          if git diff --quiet app/src/main/assets/bundled/catalog.json; then
+              echo "Catalog unchanged — nothing to commit."
+              exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/assets/bundled/catalog.json
+          git commit -m "Auto-publish catalog (${{ needs.resolve-regions.outputs.count }} regions, packs-v${{ inputs.version }})"
+          git push
