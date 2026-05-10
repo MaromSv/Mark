@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.DirectionsCar
@@ -576,7 +577,7 @@ private fun NoPacksBanner(onOpenRegions: () -> Unit) {
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
         Icon(
-            imageVector = androidx.compose.material.icons.Icons.Outlined.CloudDownload,
+            imageVector = Icons.Outlined.CloudDownload,
             contentDescription = null,
             tint = colors.bg,
             modifier = Modifier.size(20.dp),
