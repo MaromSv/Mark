@@ -67,16 +67,24 @@ def load_regions(regions_path: Path) -> dict[str, dict]:
 
 
 def discover_tarballs(tarball_dir: Path) -> list[tuple[str, int, Path]]:
-    """Return [(id, version, path), …] sorted by id."""
-    rows: list[tuple[str, int, Path]] = []
+    """Return [(id, version, path), ...] - one entry per region id, picking
+    the highest version found. Older versions stay in the release as a
+    rollback safety net but never appear in the catalog (the app would
+    otherwise show "Netherlands" twice in the picker).
+    """
+    by_id: dict[str, tuple[int, Path]] = {}
     if not tarball_dir.is_dir():
-        return rows
+        return []
     for entry in sorted(tarball_dir.iterdir()):
         m = TARBALL_RE.match(entry.name)
         if not m:
             continue
-        rows.append((m.group("id"), int(m.group("version")), entry))
-    return rows
+        rid = m.group("id")
+        version = int(m.group("version"))
+        existing = by_id.get(rid)
+        if existing is None or version > existing[0]:
+            by_id[rid] = (version, entry)
+    return [(rid, v, p) for rid, (v, p) in sorted(by_id.items())]
 
 
 def build_catalog(

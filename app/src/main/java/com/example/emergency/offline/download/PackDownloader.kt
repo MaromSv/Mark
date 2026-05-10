@@ -99,9 +99,29 @@ class PackDownloader private constructor(
             Log.d(TAG, "${entry.id}: already in flight ($current)")
             return
         }
-        if (current == DownloadState.Installed && store.get(entry.id) != null) {
-            Log.d(TAG, "${entry.id}: already installed")
+        // Already-installed check: skip iff the catalog version matches the
+        // installed version. When the catalog advertises a newer pack
+        // (e.g. v2 on the server vs v1 on disk), fall through to the
+        // download flow so the user can refresh in-place. The downloader
+        // overwrites the same regions/<id>/ dir atomically via the
+        // .installing/ rename; no manual delete needed.
+        val installed = store.get(entry.id)
+        if (current == DownloadState.Installed &&
+            installed != null &&
+            installed.version >= entry.version) {
+            Log.d(
+                TAG,
+                "${entry.id}: already installed at v${installed.version} " +
+                    "(catalog v${entry.version}); skipping",
+            )
             return
+        }
+        if (installed != null && installed.version < entry.version) {
+            Log.d(
+                TAG,
+                "${entry.id}: installed v${installed.version} but catalog has " +
+                    "v${entry.version} - downloading the upgrade",
+            )
         }
         transition(entry.id, DownloadState.Queued)
         val job = scope.launch(Dispatchers.IO) {
