@@ -266,10 +266,23 @@ fun InteractiveMap(
     // skeleton is opt-in (multi-hour build, see scripts/build-pack/skeleton-build.sh)
     // so during dev iteration the map still renders, just without basemap
     // tiles (style.json's background color shows through).
-    val tileServer = remember(offlinePaths) {
-        offlinePaths
-            ?.takeIf { it.skeletonMbtiles.exists() }
-            ?.let { MbtilesServer(it.skeletonMbtiles) }
+    // Pick the right tiles file: prefer an installed region pack
+    // (covers the user's active area in detail z0-14); fall back to the
+    // bundled global skeleton (z0-6 worldwide) when no pack is installed
+    // and the skeleton was actually built. Re-key on installedPacks so
+    // the tile server swaps the moment a pack download finishes.
+    //
+    // TODO multi-pack: when more than one pack is installed, this
+    // currently uses just the first one (alphabetical by id). A future
+    // change should pick the pack whose bbox contains the camera centre,
+    // or compose multiple mbtiles behind a single tile URL.
+    val tileServer = remember(offlinePaths, installedPacks) {
+        val packTiles = installedPacks
+            .map { it.tilesFile }
+            .firstOrNull { it.exists() }
+        val mbtiles = packTiles
+            ?: offlinePaths?.skeletonMbtiles?.takeIf { it.exists() }
+        mbtiles?.let { MbtilesServer(it) }
     }
     DisposableEffect(tileServer) {
         val server = tileServer

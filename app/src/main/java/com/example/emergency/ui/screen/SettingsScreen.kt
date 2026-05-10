@@ -145,6 +145,12 @@ fun SettingsScreen(
             GroupedListContainer {
                 InfoRow(label = "Version", value = state.versionLabel)
                 GroupedListDivider()
+                InfoRow(label = "Map data", value = "(c) OpenStreetMap contributors")
+                GroupedListDivider()
+                InfoRow(label = "Routing", value = "BRouter (LGPL)")
+                GroupedListDivider()
+                InfoRow(label = "Tile rendering", value = "MapLibre (BSD)")
+                GroupedListDivider()
                 DisclosureRow(
                     label = "Open source licenses",
                     value = null,
@@ -157,6 +163,14 @@ fun SettingsScreen(
                     onClick = onSendFeedback,
                 )
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Map data licensed under the Open Database License (ODbL). " +
+                    "OpenStreetMap is open data, contributed by people around the world.",
+                style = typography.helper.copy(fontSize = 12.sp),
+                color = colors.textFaint,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
         }
 
         Spacer(modifier = Modifier.navigationBarsPadding())

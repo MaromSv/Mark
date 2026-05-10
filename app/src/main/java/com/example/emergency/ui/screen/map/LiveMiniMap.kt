@@ -84,10 +84,16 @@ fun LiveMiniMap(
     val catalog by catalogProvider.catalog.collectAsState()
     val activeRoot = remember { File(context.filesDir, "regions/_active") }
 
-    val tileServer = remember(offlinePaths) {
-        offlinePaths
-            ?.takeIf { it.skeletonMbtiles.exists() }
-            ?.let { MbtilesServer(it.skeletonMbtiles) }
+    // Same tile-source priority as InteractiveMap: installed pack first,
+    // bundled skeleton as fallback. Re-key on installedPacks so the
+    // mini-map updates the moment a pack download finishes elsewhere.
+    val tileServer = remember(offlinePaths, installedPacks) {
+        val packTiles = installedPacks
+            .map { it.tilesFile }
+            .firstOrNull { it.exists() }
+        val mbtiles = packTiles
+            ?: offlinePaths?.skeletonMbtiles?.takeIf { it.exists() }
+        mbtiles?.let { MbtilesServer(it) }
     }
     DisposableEffect(tileServer) {
         val server = tileServer
