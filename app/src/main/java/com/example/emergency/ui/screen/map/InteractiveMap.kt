@@ -159,6 +159,21 @@ private enum class Mode(
     Drive("car-fast", "Drive", Icons.Default.DirectionsCar, NavigationProfile.Driving),
 }
 
+/**
+ * Human-readable label for a POI category. Used as a fallback "name"
+ * when an OSM POI has no `name` tag (very common for ATMs, AEDs, public
+ * toilets, drinking-water taps). Mirrors `categoryLabel` in
+ * ChatThreadScreen so the chat preview and the map info card agree.
+ */
+private fun displayLabelForCategory(category: String): String = when (category) {
+    "atm"                 -> "ATM"
+    "aed"                 -> "AED"
+    "first_aid"           -> "Medical post"
+    "parking_underground" -> "Parking"
+    "wc", "toilet"        -> "Toilet"
+    else -> category.replace('_', ' ').replaceFirstChar { it.uppercase() }
+}
+
 private fun categoryIcon(category: String): ImageVector = when (category) {
     "hospital"            -> Icons.Default.LocalHospital
     "aed"                 -> Icons.Default.Favorite
@@ -412,8 +427,15 @@ fun InteractiveMap(
                 val hits = map.queryRenderedFeatures(touchRect, "pois-layer")
                 if (hits.isNotEmpty()) {
                     val f = hits[0]
-                    val name = f.getStringProperty("name") ?: "POI"
+                    val rawName = f.getStringProperty("name")
                     val category = f.getStringProperty("category") ?: "place"
+                    // OSM POIs without a `name` tag (most ATMs, public toilets,
+                    // water fountains, AEDs) used to fall back to the literal
+                    // string "POI" which reads as a placeholder. Use the
+                    // category as the display label instead so the user sees
+                    // "ATM" / "Toilet" / "AED" rather than "POI".
+                    val name = if (!rawName.isNullOrBlank()) rawName
+                        else displayLabelForCategory(category)
                     val coord = f.geometry() as Point
                     selectedPoi = Poi(name, category, coord.latitude(), coord.longitude())
                     true
