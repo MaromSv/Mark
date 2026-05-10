@@ -212,10 +212,13 @@ fun InteractiveMap(
 
     // Idempotent - MapLibre guards internally against re-entry. Keeping it
     // here means callers don't need to remember to bootstrap from Application
-    // or MainActivity.
+    // or MainActivity. The .also { setConnected } returns the Mapbox
+    // instance so `remember` has a non-Unit value to cache (Compose lint
+    // requires `remember {}` to return something other than Unit).
     remember {
-        Mapbox.getInstance(context, null, WellKnownTileServer.MapLibre)
-        Mapbox.setConnected(true)
+        Mapbox.getInstance(context, null, WellKnownTileServer.MapLibre).also {
+            Mapbox.setConnected(true)
+        }
     }
 
     // Region pipeline (plan section 6 / Step 6). RegionStore + CatalogProvider feed

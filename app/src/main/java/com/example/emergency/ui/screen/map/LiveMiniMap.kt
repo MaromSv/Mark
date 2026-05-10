@@ -63,8 +63,9 @@ fun LiveMiniMap(
 ) {
     val context = LocalContext.current
     remember {
-        Mapbox.getInstance(context, null, WellKnownTileServer.MapLibre)
-        Mapbox.setConnected(true)
+        Mapbox.getInstance(context, null, WellKnownTileServer.MapLibre).also {
+            Mapbox.setConnected(true)
+        }
     }
 
     var userLocation by remember { mutableStateOf(DAM_SQUARE) }

@@ -115,8 +115,9 @@ fun NavigationScreen(
     val context = LocalContext.current
 
     remember {
-        Mapbox.getInstance(context, null, WellKnownTileServer.MapLibre)
-        Mapbox.setConnected(true)
+        Mapbox.getInstance(context, null, WellKnownTileServer.MapLibre).also {
+            Mapbox.setConnected(true)
+        }
     }
 
     // The engine is per-screen - when the user backs out, the next
