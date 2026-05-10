@@ -85,7 +85,7 @@ java "-Xmx${XMX}" -jar "${PLANETILER_JAR}" \
     --area="${PLANETILER_AREA}" \
     --output="${OUT}" \
     --force \
-    --exclude-layers=building \
+    --only-layers=water,waterway,transportation,transportation_name,boundary,place,park,water_name \
     --maxzoom=14 \
     --tmpdir="${WORK_DIR}" \
     --download-dir="${CACHE_DIR}/download"
