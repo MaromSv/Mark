@@ -460,7 +460,7 @@ private fun CatalogRow(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = "${entry.type.name.lowercase().replaceFirstChar { it.uppercase() }}  -  " +
-                        "${entry.sizeBytes / 1024 / 1024} MB  -  v${entry.version}",
+                        "${entry.sizeBytes / 1024 / 1024} MB",
                     style = typography.helper.copy(fontSize = 12.sp),
                     color = colors.textDim,
                 )

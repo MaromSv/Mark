@@ -172,6 +172,21 @@ class PackDownloader private constructor(
         val installing = File(regionsRoot, "${entry.id}.installing")
         installing.deleteRecursively() // clean stale half-installs
 
+        // Drop a stale partial that's left over from a different version of
+        // the same pack (e.g. v1 was 735 MB, v2 is 451 MB - resuming would
+        // ask the server for a Range past EOF and get HTTP 416). The
+        // partial filename isn't versioned by design (resume across version
+        // bumps is rare), so we just throw it away whenever its size
+        // exceeds what we now expect.
+        if (entry.sizeBytes > 0 && partial.exists() && partial.length() >= entry.sizeBytes) {
+            Log.d(
+                TAG,
+                "${entry.id}: discarding stale ${partial.length() / 1024 / 1024} MB " +
+                    "partial (catalog now expects ${entry.sizeBytes / 1024 / 1024} MB)",
+            )
+            partial.delete()
+        }
+
         // --- DOWNLOAD ---------------------------------------------------
         transition(entry.id, DownloadState.Downloading(partial.takeIf { it.exists() }?.length() ?: 0L,
             entry.sizeBytes))
@@ -356,6 +371,19 @@ internal class HttpUrlConnectionClient : PackDownloader.HttpClient {
         try {
             val code = conn.responseCode
             val rangeHonoured = code == HttpURLConnection.HTTP_PARTIAL
+            // 416 = "Requested Range Not Satisfiable" - the partial on disk
+            // is bigger than the resource (e.g. catalog now points at a
+            // smaller v2 tarball but tmp/ still holds the v1 partial).
+            // Drop the bad partial and retry from byte 0 with no Range
+            // header. PackDownloader's own pre-check usually catches this,
+            // but the safety net here covers any other version-bump path.
+            if (code == 416) {
+                Log.w("HttpUrlConnectionClient",
+                    "HTTP 416 for $url - discarding stale partial and retrying from 0")
+                conn.disconnect()
+                destFile.delete()
+                return@withContext fetchToFile(url, destFile, onProgress)
+            }
             if (code !in 200..299) {
                 throw IOException("HTTP $code ${conn.responseMessage} for $url")
             }
