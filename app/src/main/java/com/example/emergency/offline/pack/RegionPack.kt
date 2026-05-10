@@ -41,7 +41,15 @@ data class RegionPack(
     companion object {
         const val REGIONS_SUBDIR = "regions"
 
-        fun rootFor(filesDir: File, id: String): File =
-            File(filesDir, "$REGIONS_SUBDIR/$id")
+        /**
+         * Returns the on-disk root for pack [id]. [regionsRoot] must
+         * already point at `filesDir/regions/` - both PackDownloader and
+         * RegionStore initialise it that way at construction. Earlier
+         * versions of this function ALSO appended "regions/" internally,
+         * which produced a doubled path (`filesDir/regions/regions/<id>`)
+         * and broke the atomic rename in PackDownloader.
+         */
+        fun rootFor(regionsRoot: File, id: String): File =
+            File(regionsRoot, id)
     }
 }
