@@ -245,13 +245,32 @@ fun AppNavHost() {
                         withContext(Dispatchers.IO) {
                             val modelPath = GemmaLlm.defaultModelPath(context)
                             Log.d("AppNavHost", "Loading model from: $modelPath")
-                            gemma.load(
-                                GemmaLoadOptions(
-                                    modelPath = modelPath,
-                                    backend = GemmaBackend.GPU,
-                                    systemInstruction = buildSystemPrompt(toolManager)
+                            // Try GPU first (fast on real phones with OpenCL),
+                            // fall back to CPU on emulators / devices without
+                            // an OpenCL driver. CPU is ~5x slower but works
+                            // everywhere.
+                            try {
+                                gemma.load(
+                                    GemmaLoadOptions(
+                                        modelPath = modelPath,
+                                        backend = GemmaBackend.GPU,
+                                        systemInstruction = buildSystemPrompt(toolManager),
+                                    ),
                                 )
-                            )
+                            } catch (gpuFail: Throwable) {
+                                Log.w(
+                                    "AppNavHost",
+                                    "GPU backend unavailable (likely no OpenCL on this device); " +
+                                        "falling back to CPU. ${gpuFail.message}",
+                                )
+                                gemma.load(
+                                    GemmaLoadOptions(
+                                        modelPath = modelPath,
+                                        backend = GemmaBackend.CPU,
+                                        systemInstruction = buildSystemPrompt(toolManager),
+                                    ),
+                                )
+                            }
                         }
                         modelStatus = ModelStatus.READY
                         Log.d("AppNavHost", "Model loaded successfully")
