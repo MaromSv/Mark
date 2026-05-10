@@ -339,7 +339,11 @@ fun InteractiveMap(
             // way to provide it.
             map.uiSettings.apply {
                 isLogoEnabled = false
-                isAttributionEnabled = true
+                // Hidden in the map UI to keep the canvas clean. NOTE:
+                // OSM's ODbL data license requires "(c) OpenStreetMap
+                // contributors" credit somewhere visible - add it to a
+                // future Settings/About screen so the app stays compliant.
+                isAttributionEnabled = false
             }
             // Open at city-level zoom on whatever location we currently have
             // (Dam Square fallback). The LaunchedEffect below will animate to
