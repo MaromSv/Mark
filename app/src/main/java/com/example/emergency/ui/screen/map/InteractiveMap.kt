@@ -463,12 +463,15 @@ fun InteractiveMap(
         }
     }
 
-    // Debug panel: rebuild POI layers whenever any of the knobs change.
-    // addPoiLayer is idempotent (removes existing source + layers first),
-    // so this can fire freely - the initial style.setStyle callback above
-    // already attaches them with the same defaults.
+    // Debug panel: rebuild POI layers ONLY when the user moves a slider /
+    // flips the switch. Crucially, mapboxMap is NOT a key here - if it
+    // were, the effect would fire the moment the map became ready and
+    // race against the initial addPoiLayer call from setStyle's callback,
+    // tearing down a still-loading source. With debug values as the only
+    // keys, the effect runs once on first composition with defaults
+    // (returns early because mapboxMap is still null), then only re-fires
+    // when the user actually changes a knob.
     LaunchedEffect(
-        mapboxMap,
         debugClusteringEnabled,
         debugClusterRadius,
         debugClusterMaxZoom,
