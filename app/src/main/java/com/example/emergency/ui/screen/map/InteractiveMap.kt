@@ -736,49 +736,59 @@ private fun DebugPanel(
         }
         DebugSlider(
             label = "cluster radius",
-            value = clusterRadius,
-            valueRange = 0f..120f,
-            display = "${clusterRadius.toInt()} px",
-            onChange = onClusterRadiusChange,
+            initial = clusterRadius,
+            valueRange = 1f..120f,
+            formatDisplay = { "${it.toInt()} px" },
+            onCommit = onClusterRadiusChange,
             fg = fg, dim = dim,
         )
         DebugSlider(
             label = "cluster max zoom",
-            value = clusterMaxZoom,
+            initial = clusterMaxZoom,
             valueRange = 0f..22f,
-            display = "z${clusterMaxZoom.toInt()}",
-            onChange = onClusterMaxZoomChange,
+            formatDisplay = { "z${it.toInt()}" },
+            onCommit = onClusterMaxZoomChange,
             fg = fg, dim = dim,
         )
         DebugSlider(
             label = "POI scale",
-            value = poiScale,
+            initial = poiScale,
             valueRange = 0.3f..3f,
-            display = "%.1fx".format(poiScale),
-            onChange = onPoiScaleChange,
+            formatDisplay = { "%.1fx".format(it) },
+            onCommit = onPoiScaleChange,
             fg = fg, dim = dim,
         )
     }
 }
 
+/**
+ * Slider that only commits to the parent on release. The local state
+ * tracks the dragged thumb position (so the display label updates
+ * smoothly), but [onCommit] - which triggers an addPoiLayer rebuild -
+ * fires once when the user lifts their finger. Without this, dragging
+ * would tear down and rebuild the GeoJsonSource dozens of times per
+ * second and crash MapLibre.
+ */
 @Composable
 private fun DebugSlider(
     label: String,
-    value: Float,
+    initial: Float,
     valueRange: ClosedFloatingPointRange<Float>,
-    display: String,
-    onChange: (Float) -> Unit,
+    formatDisplay: (Float) -> String,
+    onCommit: (Float) -> Unit,
     fg: Color,
     dim: Color,
 ) {
+    var local by remember(initial) { mutableStateOf(initial) }
     Column(modifier = Modifier.padding(top = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, color = fg, fontSize = 11.sp, modifier = Modifier.weight(1f))
-            Text(display, color = dim, fontSize = 11.sp)
+            Text(formatDisplay(local), color = dim, fontSize = 11.sp)
         }
         Slider(
-            value = value,
-            onValueChange = onChange,
+            value = local,
+            onValueChange = { local = it },
+            onValueChangeFinished = { onCommit(local) },
             valueRange = valueRange,
             colors = SliderDefaults.colors(
                 thumbColor = Color.White,
