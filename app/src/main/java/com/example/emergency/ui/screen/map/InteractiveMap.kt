@@ -52,6 +52,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -263,6 +267,15 @@ fun InteractiveMap(
     // getMapAsync.
     var mapboxMap by remember { mutableStateOf<MapboxMap?>(null) }
 
+    // ---- Debug knobs (temporary). Bound to the floating debug panel; any
+    // change rebuilds the POI source + layers so the user can see the
+    // effect live.
+    var debugClusteringEnabled by remember { mutableStateOf(true) }
+    var debugClusterRadius by remember { mutableStateOf(15f) }
+    var debugClusterMaxZoom by remember { mutableStateOf(18f) }
+    var debugPoiScale by remember { mutableStateOf(1f) }
+    var debugExpanded by remember { mutableStateOf(false) }
+
     // Offline data plane: staging is kicked off at process start by
     // [com.example.emergency.EmergencyApp], so by the time the map screen
     // mounts the copy is usually already done. We observe the shared state
@@ -386,7 +399,13 @@ fun InteractiveMap(
             map.setStyle(Style.Builder().fromJson(styleJson)) { style ->
                 Log.d(TAG, "Style loaded; layers=${style.layers.size}, sources=${style.sources.size}")
                 try {
-                    addPoiLayer(context, style)
+                    addPoiLayer(
+                        context, style,
+                        clusteringEnabled = debugClusteringEnabled,
+                        clusterRadius = debugClusterRadius.toInt(),
+                        clusterMaxZoom = debugClusterMaxZoom.toInt(),
+                        poiScale = debugPoiScale,
+                    )
                     routeSource = addRouteLayer(style)
                     userLocationSource = addUserLocationLayer(style)
                     selectedDestSource = addSelectedDestinationLayer(style)
@@ -442,6 +461,30 @@ fun InteractiveMap(
                 } else false
             }
         }
+    }
+
+    // Debug panel: rebuild POI layers whenever any of the knobs change.
+    // addPoiLayer is idempotent (removes existing source + layers first),
+    // so this can fire freely - the initial style.setStyle callback above
+    // already attaches them with the same defaults.
+    LaunchedEffect(
+        mapboxMap,
+        debugClusteringEnabled,
+        debugClusterRadius,
+        debugClusterMaxZoom,
+        debugPoiScale,
+    ) {
+        val style = mapboxMap?.style ?: return@LaunchedEffect
+        if (!style.isFullyLoaded) return@LaunchedEffect
+        runCatching {
+            addPoiLayer(
+                context, style,
+                clusteringEnabled = debugClusteringEnabled,
+                clusterRadius = debugClusterRadius.toInt(),
+                clusterMaxZoom = debugClusterMaxZoom.toInt(),
+                poiScale = debugPoiScale,
+            )
+        }.onFailure { Log.e(TAG, "Debug rebuild failed", it) }
     }
 
     // Animate the map to the current GPS fix once both the map is ready and
@@ -585,6 +628,25 @@ fun InteractiveMap(
                 .padding(top = 64.dp),
         )
 
+        // Temporary debug panel: bottom-left, collapsed by default. Tap
+        // the chip to expand sliders for cluster radius / max zoom /
+        // POI scale + a clustering on-off toggle. Remove once dialed in.
+        DebugPanel(
+            expanded = debugExpanded,
+            onToggle = { debugExpanded = !debugExpanded },
+            clusteringEnabled = debugClusteringEnabled,
+            onClusteringEnabledChange = { debugClusteringEnabled = it },
+            clusterRadius = debugClusterRadius,
+            onClusterRadiusChange = { debugClusterRadius = it },
+            clusterMaxZoom = debugClusterMaxZoom,
+            onClusterMaxZoomChange = { debugClusterMaxZoom = it },
+            poiScale = debugPoiScale,
+            onPoiScaleChange = { debugPoiScale = it },
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 12.dp, bottom = 12.dp),
+        )
+
         // First-launch nudge: if no map packs are installed, surface a
         // prominent banner pointing the user at the picker. The cloud icon
         // in the top bar is easy to miss for first-time users; this banner
@@ -601,6 +663,126 @@ fun InteractiveMap(
         ) {
             NoPacksBanner(onOpenRegions = onOpenRegions)
         }
+    }
+}
+
+// Floating debug panel. Collapsed = a tiny "DEBUG" chip. Tap to expand
+// into a card with the live POI / cluster knobs. Temporary - delete the
+// composable + its callers once we've nailed the right defaults.
+@Composable
+private fun DebugPanel(
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    clusteringEnabled: Boolean,
+    onClusteringEnabledChange: (Boolean) -> Unit,
+    clusterRadius: Float,
+    onClusterRadiusChange: (Float) -> Unit,
+    clusterMaxZoom: Float,
+    onClusterMaxZoomChange: (Float) -> Unit,
+    poiScale: Float,
+    onPoiScaleChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val bg = Color(0xCC111111)
+    val fg = Color.White
+    val dim = Color(0xFFB0B0B0)
+    if (!expanded) {
+        Box(
+            modifier = modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(bg)
+                .clickable(onClick = onToggle)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            Text("DEBUG", color = fg, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+        return
+    }
+    Column(
+        modifier = modifier
+            .width(260.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(bg)
+            .padding(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("DEBUG", color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = "hide",
+                color = dim,
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .clickable(onClick = onToggle)
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+        }
+        Spacer(Modifier.size(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Clustering", color = fg, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Switch(
+                checked = clusteringEnabled,
+                onCheckedChange = onClusteringEnabledChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = Color(0xFF1E88E5),
+                    uncheckedThumbColor = Color.White,
+                    uncheckedTrackColor = Color(0xFF555555),
+                ),
+            )
+        }
+        DebugSlider(
+            label = "cluster radius",
+            value = clusterRadius,
+            valueRange = 0f..120f,
+            display = "${clusterRadius.toInt()} px",
+            onChange = onClusterRadiusChange,
+            fg = fg, dim = dim,
+        )
+        DebugSlider(
+            label = "cluster max zoom",
+            value = clusterMaxZoom,
+            valueRange = 0f..22f,
+            display = "z${clusterMaxZoom.toInt()}",
+            onChange = onClusterMaxZoomChange,
+            fg = fg, dim = dim,
+        )
+        DebugSlider(
+            label = "POI scale",
+            value = poiScale,
+            valueRange = 0.3f..3f,
+            display = "%.1fx".format(poiScale),
+            onChange = onPoiScaleChange,
+            fg = fg, dim = dim,
+        )
+    }
+}
+
+@Composable
+private fun DebugSlider(
+    label: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    display: String,
+    onChange: (Float) -> Unit,
+    fg: Color,
+    dim: Color,
+) {
+    Column(modifier = Modifier.padding(top = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, color = fg, fontSize = 11.sp, modifier = Modifier.weight(1f))
+            Text(display, color = dim, fontSize = 11.sp)
+        }
+        Slider(
+            value = value,
+            onValueChange = onChange,
+            valueRange = valueRange,
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color(0xFF1E88E5),
+                inactiveTrackColor = Color(0xFF555555),
+            ),
+        )
     }
 }
 
@@ -892,7 +1074,21 @@ private fun formatDuration(seconds: Double): String {
 // Adds the POI source + layers to the style. POIs are loaded from
 // app/src/main/assets/pois-nl.geojson and aggregated client-side via MapLibre
 // clustering - without that, rendering dense pins at low zoom would stutter.
-private fun addPoiLayer(context: Context, style: Style) {
+private fun addPoiLayer(
+    context: Context,
+    style: Style,
+    clusteringEnabled: Boolean = true,
+    clusterRadius: Int = 15,
+    clusterMaxZoom: Int = 18,
+    poiScale: Float = 1f,
+) {
+    // Idempotent: remove anything we previously attached so the debug
+    // panel can rebuild with new options live.
+    listOf("clusters-layer", "clusters-count-layer", "pois-layer", "pois-icons-layer").forEach { id ->
+        if (style.getLayer(id) != null) style.removeLayer(id)
+    }
+    if (style.getSource("pois-source") != null) style.removeSource("pois-source")
+
     POI_CATEGORIES.forEach { name ->
         val resId = context.resources.getIdentifier("ic_poi_$name", "drawable", context.packageName)
         if (resId != 0) {
@@ -903,17 +1099,9 @@ private fun addPoiLayer(context: Context, style: Style) {
     }
 
     val options = GeoJsonOptions()
-        .withCluster(true)
-        // Cluster up to z18 so overlapping POIs (e.g. 3 pharmacies in one
-        // block) keep showing a tappable count even at street level. Tap
-        // the badge -> getClusterExpansionZoom animates to where they
-        // spread apart.
-        .withClusterMaxZoom(18)
-        // 15 px keeps clustering very tight: POIs only merge when they
-        // are nearly overlapping on screen. Below this, individual
-        // colored category dots stay visible at low/mid zoom instead of
-        // being absorbed into a cluster the moment the user zooms out.
-        .withClusterRadius(15)
+        .withCluster(clusteringEnabled)
+        .withClusterMaxZoom(clusterMaxZoom)
+        .withClusterRadius(clusterRadius)
     val source = GeoJsonSource("pois-source", options)
     style.addSource(source)
 
@@ -925,38 +1113,39 @@ private fun addPoiLayer(context: Context, style: Style) {
     // We copy once per install (existence check). When the bundled asset is
     // updated, the next reinstall replaces filesDir so the copy refreshes
     // automatically; for in-place dev iteration, clear app data.
-    Thread {
-        try {
-            val outFile = java.io.File(context.filesDir, "pois-nl.geojson")
-            val versionFile = java.io.File(context.filesDir, "pois-nl.version")
-            val cachedVersion = versionFile.takeIf { it.exists() }
-                ?.runCatching { readText().trim().toInt() }?.getOrNull() ?: -1
-            val needsCopy = !outFile.exists() || cachedVersion != POI_BUNDLE_VERSION
-            if (needsCopy) {
-                Log.d(
-                    TAG,
-                    "Copying pois-nl.geojson from assets (cached=$cachedVersion, " +
-                        "current=$POI_BUNDLE_VERSION)...",
-                )
-                context.assets.open("pois-nl.geojson").use { input ->
-                    outFile.outputStream().use { output -> input.copyTo(output) }
+    val outFile = java.io.File(context.filesDir, "pois-nl.geojson")
+    if (outFile.exists()) {
+        // Fast path (initial render on second+ launch, every debug-panel
+        // rebuild): the file is already staged, point MapLibre at it now.
+        source.setUri("file://${outFile.absolutePath}")
+    } else {
+        Thread {
+            try {
+                val versionFile = java.io.File(context.filesDir, "pois-nl.version")
+                val cachedVersion = versionFile.takeIf { it.exists() }
+                    ?.runCatching { readText().trim().toInt() }?.getOrNull() ?: -1
+                if (!outFile.exists() || cachedVersion != POI_BUNDLE_VERSION) {
+                    Log.d(
+                        TAG,
+                        "Copying pois-nl.geojson from assets (cached=$cachedVersion, " +
+                            "current=$POI_BUNDLE_VERSION)...",
+                    )
+                    context.assets.open("pois-nl.geojson").use { input ->
+                        outFile.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    versionFile.writeText(POI_BUNDLE_VERSION.toString())
+                    Log.d(TAG, "Copied pois-nl.geojson (${outFile.length() / 1024} KB) to ${outFile.absolutePath}")
                 }
-                versionFile.writeText(POI_BUNDLE_VERSION.toString())
-                Log.d(TAG, "Copied pois-nl.geojson (${outFile.length() / 1024} KB) to ${outFile.absolutePath}")
-            } else {
-                Log.d(TAG, "Reusing existing pois-nl.geojson (${outFile.length() / 1024} KB)")
+                val uri = "file://${outFile.absolutePath}"
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    Log.d(TAG, "Setting POI source URI: $uri")
+                    source.setUri(uri)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to stage pois-nl.geojson", e)
             }
-            // MapLibre expects a triple-slash file URI; File.toURI() yields
-            // file:/path on some JVMs which the native loader rejects.
-            val uri = "file://${outFile.absolutePath}"
-            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                Log.d(TAG, "Setting POI source URI: $uri")
-                source.setUri(uri)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to stage pois-nl.geojson", e)
-        }
-    }.start()
+        }.start()
+    }
 
     val categoryColorExpr = Expression.match(
         Expression.get("category"),
@@ -1024,13 +1213,13 @@ private fun addPoiLayer(context: Context, style: Style) {
         PropertyFactory.circleRadius(
             Expression.interpolate(
                 Expression.linear(), Expression.zoom(),
-                Expression.stop(6, 4f),
-                Expression.stop(9, 6f),
-                Expression.stop(11, 8f),
-                Expression.stop(13, 11f),
-                Expression.stop(15, 14f),
-                Expression.stop(17, 16f),
-                Expression.stop(19, 18f),
+                Expression.stop(6, 4f * poiScale),
+                Expression.stop(9, 6f * poiScale),
+                Expression.stop(11, 8f * poiScale),
+                Expression.stop(13, 11f * poiScale),
+                Expression.stop(15, 14f * poiScale),
+                Expression.stop(17, 16f * poiScale),
+                Expression.stop(19, 18f * poiScale),
             )
         ),
         PropertyFactory.circleStrokeWidth(
@@ -1056,10 +1245,10 @@ private fun addPoiLayer(context: Context, style: Style) {
         PropertyFactory.iconSize(
             Expression.interpolate(
                 Expression.linear(), Expression.zoom(),
-                Expression.stop(12, 0.10f),
-                Expression.stop(14, 0.20f),
-                Expression.stop(16, 0.26f),
-                Expression.stop(18, 0.32f),
+                Expression.stop(12, 0.10f * poiScale),
+                Expression.stop(14, 0.20f * poiScale),
+                Expression.stop(16, 0.26f * poiScale),
+                Expression.stop(18, 0.32f * poiScale),
             )
         ),
         PropertyFactory.iconAllowOverlap(true),
