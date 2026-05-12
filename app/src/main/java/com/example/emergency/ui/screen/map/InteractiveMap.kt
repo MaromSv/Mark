@@ -904,15 +904,15 @@ private fun addPoiLayer(context: Context, style: Style) {
 
     val options = GeoJsonOptions()
         .withCluster(true)
-        // Cluster up to z17 - keeps numbered badges visible at very high
-        // zoom too, so even at street level a cluster of overlapping POIs
-        // (e.g. 3 pharmacies in one block) shows as a tappable count
-        // rather than overlapping dots. Tap one -> getClusterExpansionZoom
-        // animates to where they spread apart.
-        .withClusterMaxZoom(17)
-        // 60 px (was 50) makes clusters merge a bit more aggressively at
-        // every zoom so the user always sees groupings, not dot soup.
-        .withClusterRadius(60)
+        // Cluster up to z18 so overlapping POIs (e.g. 3 pharmacies in one
+        // block) keep showing a tappable count even at street level. Tap
+        // the badge -> getClusterExpansionZoom animates to where they
+        // spread apart.
+        .withClusterMaxZoom(18)
+        // 80 px (was 60) merges POIs more aggressively at every zoom so
+        // the user always sees counted groupings instead of a soup of
+        // overlapping pins.
+        .withClusterRadius(80)
     val source = GeoJsonSource("pois-source", options)
     style.addSource(source)
 
@@ -1015,8 +1015,20 @@ private fun addPoiLayer(context: Context, style: Style) {
     style.addLayer(clusterCount)
 
     // Individual POI: colored circle, only when not part of a cluster.
+    // Radius grows with zoom so isolated POIs at city/district zoom are
+    // still readable. Below 11 we draw nothing - dense areas will be
+    // showing cluster badges at those zooms anyway.
     val poiCircle = CircleLayer("pois-layer", "pois-source").withProperties(
-        PropertyFactory.circleRadius(11f),
+        PropertyFactory.circleRadius(
+            Expression.interpolate(
+                Expression.linear(), Expression.zoom(),
+                Expression.stop(11, 6f),
+                Expression.stop(13, 10f),
+                Expression.stop(15, 13f),
+                Expression.stop(17, 15f),
+                Expression.stop(19, 17f),
+            )
+        ),
         PropertyFactory.circleStrokeWidth(2.5f),
         PropertyFactory.circleStrokeColor("#FFFFFF"),
         PropertyFactory.circleColor(categoryColorExpr),
@@ -1028,7 +1040,17 @@ private fun addPoiLayer(context: Context, style: Style) {
         PropertyFactory.iconImage(
             Expression.concat(Expression.get("category"), Expression.literal("-icon"))
         ),
-        PropertyFactory.iconSize(0.20f),
+        // Icons sized to fit inside the circle above at each zoom step.
+        PropertyFactory.iconSize(
+            Expression.interpolate(
+                Expression.linear(), Expression.zoom(),
+                Expression.stop(11, 0.12f),
+                Expression.stop(13, 0.18f),
+                Expression.stop(15, 0.24f),
+                Expression.stop(17, 0.28f),
+                Expression.stop(19, 0.32f),
+            )
+        ),
         PropertyFactory.iconAllowOverlap(true),
         PropertyFactory.iconIgnorePlacement(true),
     )

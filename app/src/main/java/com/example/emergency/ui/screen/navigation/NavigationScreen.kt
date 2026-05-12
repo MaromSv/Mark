@@ -27,9 +27,26 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.ForkLeft
+import androidx.compose.material.icons.filled.ForkRight
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.RoundaboutLeft
+import androidx.compose.material.icons.filled.RoundaboutRight
+import androidx.compose.material.icons.filled.Straight
+import androidx.compose.material.icons.filled.TurnLeft
+import androidx.compose.material.icons.filled.TurnRight
+import androidx.compose.material.icons.filled.TurnSharpLeft
+import androidx.compose.material.icons.filled.TurnSharpRight
+import androidx.compose.material.icons.filled.TurnSlightLeft
+import androidx.compose.material.icons.filled.TurnSlightRight
+import androidx.compose.material.icons.filled.UTurnLeft
+import androidx.compose.material.icons.filled.UTurnRight
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -62,8 +79,13 @@ import com.example.emergency.offline.navigation.NavigationEngine
 import com.example.emergency.offline.navigation.NavigationProfile
 import com.example.emergency.offline.navigation.NavigationState
 import com.example.emergency.offline.routing.StepFormatter
+import com.example.emergency.offline.routing.TurnCommand
+import com.example.emergency.offline.routing.TurnStep
 import com.example.emergency.ui.theme.EmergencyShapes
 import com.example.emergency.ui.theme.EmergencyTheme
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -332,30 +354,133 @@ private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier
     val typography = EmergencyTheme.typography
     val nav = state as? NavigationState.Navigating
     val progress = nav?.progress
-    val step = progress?.currentStepIndex
-        ?.takeIf { it >= 0 }
-        ?.let { state.route.steps.getOrNull(it) }
-    val text = when {
-        state is NavigationState.Arrived -> "You have arrived"
-        state is NavigationState.Preview -> "Loading route..."
-        step == null -> "Follow the route"
-        else -> StepFormatter.formatStep(
-            step = step,
-            distanceUntilHereM = progress.distanceToNextStepMeters,
-        )
-    }
-    Box(
+    val steps = state.route.steps
+    val currentIdx = progress?.currentStepIndex?.takeIf { it >= 0 }
+    val currentStep = currentIdx?.let { steps.getOrNull(it) }
+    val thenStep = currentIdx?.let { steps.getOrNull(it + 1) }
+    val arrived = state is NavigationState.Arrived
+    val preview = state is NavigationState.Preview
+
+    Column(
         modifier = modifier
             .clip(EmergencyShapes.hero)
             .background(colors.text)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
-        Text(
-            text = text,
-            style = typography.listItem.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium),
-            color = colors.bg,
-        )
+        // Primary line: BIG icon + "Turn left in 200 m" + street name.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = when {
+                    arrived -> Icons.Filled.Flag
+                    currentStep != null -> turnIcon(currentStep.command)
+                    else -> Icons.Filled.Place
+                },
+                contentDescription = null,
+                tint = colors.bg,
+                modifier = Modifier.size(40.dp),
+            )
+            Spacer(Modifier.size(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = when {
+                        arrived -> "You have arrived"
+                        preview -> "Loading route..."
+                        currentStep == null -> "Follow the route"
+                        else -> primaryManeuverLine(currentStep, progress?.distanceToNextStepMeters ?: 0.0)
+                    },
+                    style = typography.listItem.copy(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
+                    color = colors.bg,
+                    maxLines = 2,
+                )
+                if (!arrived && currentStep?.streetName?.isNotBlank() == true) {
+                    Spacer(Modifier.size(2.dp))
+                    Text(
+                        text = "onto ${currentStep.streetName}",
+                        style = typography.helper.copy(fontSize = 13.sp),
+                        color = colors.bg.copy(alpha = 0.75f),
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+
+        // Secondary line: "Then right onto Spuistraat" — only when there's a turn after.
+        if (!arrived && thenStep != null && thenStep.command !is TurnCommand.Continue) {
+            Spacer(Modifier.size(10.dp))
+            HorizontalDivider(color = colors.bg.copy(alpha = 0.18f), thickness = 1.dp)
+            Spacer(Modifier.size(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = turnIcon(thenStep.command),
+                    contentDescription = null,
+                    tint = colors.bg.copy(alpha = 0.85f),
+                    modifier = Modifier.size(22.dp),
+                )
+                Spacer(Modifier.size(10.dp))
+                Text(
+                    text = "Then ${secondaryManeuverLine(thenStep)}",
+                    style = typography.helper.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
+                    color = colors.bg.copy(alpha = 0.85f),
+                    maxLines = 1,
+                )
+            }
+        }
     }
+}
+
+/** Primary banner phrasing: "Turn left in 200 m" / "Turn left now". */
+private fun primaryManeuverLine(step: TurnStep, distanceM: Double): String {
+    val verb = primaryVerb(step.command)
+    if (step.command is TurnCommand.Arrive) return "You have arrived"
+    val distLabel = StepFormatter.formatDistance(distanceM)
+    return if (distanceM < 25.0) "$verb now" else "$verb in $distLabel"
+}
+
+/** Secondary line ("Then right"): just the verb, no distance. */
+private fun secondaryManeuverLine(step: TurnStep): String {
+    val verb = primaryVerb(step.command).replaceFirstChar { it.lowercase() }
+    return if (!step.streetName.isNullOrBlank()) "$verb onto ${step.streetName}" else verb
+}
+
+private fun primaryVerb(command: TurnCommand): String = when (command) {
+    TurnCommand.Continue            -> "Continue"
+    TurnCommand.Straight            -> "Go straight"
+    TurnCommand.TurnLeft            -> "Turn left"
+    TurnCommand.TurnSlightLeft      -> "Bear left"
+    TurnCommand.TurnSharpLeft       -> "Sharp left"
+    TurnCommand.TurnRight           -> "Turn right"
+    TurnCommand.TurnSlightRight     -> "Bear right"
+    TurnCommand.TurnSharpRight      -> "Sharp right"
+    TurnCommand.KeepLeft            -> "Keep left"
+    TurnCommand.KeepRight           -> "Keep right"
+    TurnCommand.UTurnLeft           -> "Make a U-turn"
+    TurnCommand.UTurnRight          -> "Make a U-turn"
+    TurnCommand.Beeline             -> "Follow the path"
+    TurnCommand.Exit                -> "Take the exit"
+    TurnCommand.Arrive              -> "Arrive"
+    TurnCommand.OffRoute            -> "Return to route"
+    is TurnCommand.Roundabout       -> "At the roundabout"
+    is TurnCommand.Unknown          -> "Follow the road"
+}
+
+private fun turnIcon(command: TurnCommand): ImageVector = when (command) {
+    TurnCommand.Continue, TurnCommand.Straight   -> Icons.Filled.Straight
+    TurnCommand.TurnLeft                         -> Icons.Filled.TurnLeft
+    TurnCommand.TurnSlightLeft                   -> Icons.Filled.TurnSlightLeft
+    TurnCommand.TurnSharpLeft                    -> Icons.Filled.TurnSharpLeft
+    TurnCommand.TurnRight                        -> Icons.Filled.TurnRight
+    TurnCommand.TurnSlightRight                  -> Icons.Filled.TurnSlightRight
+    TurnCommand.TurnSharpRight                   -> Icons.Filled.TurnSharpRight
+    TurnCommand.KeepLeft                         -> Icons.Filled.ForkLeft
+    TurnCommand.KeepRight                        -> Icons.Filled.ForkRight
+    TurnCommand.UTurnLeft                        -> Icons.Filled.UTurnLeft
+    TurnCommand.UTurnRight                       -> Icons.Filled.UTurnRight
+    is TurnCommand.Roundabout                    -> if (command.leftHanded) Icons.Filled.RoundaboutLeft else Icons.Filled.RoundaboutRight
+    TurnCommand.Exit                             -> Icons.Filled.TurnSlightRight
+    TurnCommand.Arrive                           -> Icons.Filled.Flag
+    TurnCommand.Beeline                          -> Icons.Filled.Straight
+    TurnCommand.OffRoute                         -> Icons.Filled.Place
+    is TurnCommand.Unknown                       -> Icons.Filled.Straight
 }
 
 @Composable
@@ -409,13 +534,16 @@ private fun EtaCard(state: NavigationState, modifier: Modifier = Modifier) {
     val remainingLabel = if (remainingM >= 1000) "%.1f km".format(remainingM / 1000)
         else "%.0f m".format(remainingM)
     val durationS = state.route.durationS
-    val etaMinutesAtStart = (durationS / 60).toInt()
-    val ratio = if (total > 0) (remainingM / total).coerceIn(0.0, 1.0) else 0.0
-    val remainingEtaMin = (etaMinutesAtStart * ratio).toInt()
-    val titleText = when {
-        arrived -> "Arrived"
-        rerouting != null -> "Recalculating...  -  $remainingLabel left"
-        else -> "${remainingEtaMin} min  -  $remainingLabel left"
+    val ratio = if (total > 0) (remainingM / total).coerceIn(0.0, 1.0) else 1.0
+    val remainingMin = (durationS / 60.0 * ratio).toInt().coerceAtLeast(0)
+    val timeLabel = when {
+        remainingMin < 1 -> "<1 min"
+        remainingMin < 60 -> "$remainingMin min"
+        else -> "${remainingMin / 60} h ${remainingMin % 60} min"
+    }
+    val etaClock = remember(remainingMin) {
+        val arrival = Date(System.currentTimeMillis() + remainingMin * 60_000L)
+        SimpleDateFormat("HH:mm", Locale.getDefault()).format(arrival)
     }
 
     Box(
@@ -423,25 +551,62 @@ private fun EtaCard(state: NavigationState, modifier: Modifier = Modifier) {
             .clip(EmergencyShapes.hero)
             .background(colors.surface)
             .border(1.dp, colors.line, EmergencyShapes.hero)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
-        Column {
+        if (arrived) {
             Text(
-                text = titleText,
-                style = typography.listItem.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium),
+                text = "Arrived",
+                style = typography.listItem.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
                 color = colors.text,
             )
-            if (!arrived) {
-                Spacer(Modifier.size(2.dp))
-                Text(
-                    text = "Total ${if (total >= 1000) "%.1f km".format(total / 1000) else "%.0f m".format(total)}  -  " +
-                        "${state.route.steps.size} step${if (state.route.steps.size == 1) "" else "s"}",
-                    style = typography.helper.copy(fontSize = 12.sp),
-                    color = colors.textDim,
-                )
+        } else if (rerouting != null) {
+            Text(
+                text = "Recalculating... - $remainingLabel left",
+                style = typography.helper.copy(fontSize = 13.sp),
+                color = colors.textDim,
+            )
+        } else {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                EtaStat(big = etaClock, small = "arrive")
+                EtaDot()
+                EtaStat(big = timeLabel, small = "left")
+                EtaDot()
+                EtaStat(big = remainingLabel, small = "to go")
             }
         }
     }
+}
+
+@Composable
+private fun EtaStat(big: String, small: String) {
+    val colors = EmergencyTheme.colors
+    val typography = EmergencyTheme.typography
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = big,
+            style = typography.listItem.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+            color = colors.text,
+        )
+        Text(
+            text = small,
+            style = typography.helper.copy(fontSize = 11.sp),
+            color = colors.textDim,
+        )
+    }
+}
+
+@Composable
+private fun EtaDot() {
+    Box(
+        modifier = Modifier
+            .size(3.dp)
+            .clip(CircleShape)
+            .background(EmergencyTheme.colors.line),
+    )
 }
 
 @Composable
