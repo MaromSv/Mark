@@ -909,12 +909,11 @@ private fun addPoiLayer(context: Context, style: Style) {
         // the badge -> getClusterExpansionZoom animates to where they
         // spread apart.
         .withClusterMaxZoom(18)
-        // 30 px keeps clustering tight: POIs only merge when they're
-        // visually overlapping. That way the colored category dots
-        // (hospital red, pharmacy green, AED orange...) are visible from
-        // district zoom (z12-13) onwards instead of being absorbed into
-        // generic blue cluster badges until the user is at street level.
-        .withClusterRadius(30)
+        // 15 px keeps clustering very tight: POIs only merge when they
+        // are nearly overlapping on screen. Below this, individual
+        // colored category dots stay visible at low/mid zoom instead of
+        // being absorbed into a cluster the moment the user zooms out.
+        .withClusterRadius(15)
     val source = GeoJsonSource("pois-source", options)
     style.addSource(source)
 
@@ -1025,19 +1024,20 @@ private fun addPoiLayer(context: Context, style: Style) {
         PropertyFactory.circleRadius(
             Expression.interpolate(
                 Expression.linear(), Expression.zoom(),
-                Expression.stop(8, 3f),
-                Expression.stop(10, 5f),
-                Expression.stop(12, 9f),
-                Expression.stop(14, 12f),
-                Expression.stop(16, 15f),
-                Expression.stop(18, 17f),
+                Expression.stop(6, 4f),
+                Expression.stop(9, 6f),
+                Expression.stop(11, 8f),
+                Expression.stop(13, 11f),
+                Expression.stop(15, 14f),
+                Expression.stop(17, 16f),
+                Expression.stop(19, 18f),
             )
         ),
         PropertyFactory.circleStrokeWidth(
             Expression.interpolate(
                 Expression.linear(), Expression.zoom(),
-                Expression.stop(8, 0.5f),
-                Expression.stop(12, 1.5f),
+                Expression.stop(6, 1f),
+                Expression.stop(10, 1.5f),
                 Expression.stop(14, 2.5f),
             )
         ),
