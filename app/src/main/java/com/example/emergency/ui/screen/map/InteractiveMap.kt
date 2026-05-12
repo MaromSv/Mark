@@ -1085,8 +1085,16 @@ private fun addPoiLayer(
     clusterMaxZoom: Int = 18,
     poiScale: Float = 1f,
 ) {
+    Log.d(
+        TAG,
+        "addPoiLayer: clusteringEnabled=$clusteringEnabled clusterRadius=$clusterRadius " +
+            "clusterMaxZoom=$clusterMaxZoom poiScale=$poiScale",
+    )
+
     // Idempotent: remove anything we previously attached so the debug
-    // panel can rebuild with new options live.
+    // panel can rebuild with new options live. Layers must come down
+    // before the source, otherwise removeSource throws because the
+    // source is still referenced.
     listOf("clusters-layer", "clusters-count-layer", "pois-layer", "pois-icons-layer").forEach { id ->
         if (style.getLayer(id) != null) style.removeLayer(id)
     }
@@ -1108,47 +1116,42 @@ private fun addPoiLayer(
     val source = GeoJsonSource("pois-source", options)
     style.addSource(source)
 
-    // The bundled GeoJSON is ~32 MB; reading it as a Kotlin String would
-    // allocate ~128 MB on the Java heap (UTF-16 + StringBuilder doubling) and
-    // OOM mid-launch. Instead we stream it to internal storage with a bounded
-    // buffer and hand MapLibre a file:// URI so the parse happens natively.
-    //
-    // We copy once per install (existence check). When the bundled asset is
-    // updated, the next reinstall replaces filesDir so the copy refreshes
-    // automatically; for in-place dev iteration, clear app data.
-    val outFile = java.io.File(context.filesDir, "pois-nl.geojson")
-    if (outFile.exists()) {
-        // Fast path (initial render on second+ launch, every debug-panel
-        // rebuild): the file is already staged, point MapLibre at it now.
-        source.setUri("file://${outFile.absolutePath}")
-    } else {
-        Thread {
-            try {
-                val versionFile = java.io.File(context.filesDir, "pois-nl.version")
-                val cachedVersion = versionFile.takeIf { it.exists() }
-                    ?.runCatching { readText().trim().toInt() }?.getOrNull() ?: -1
-                if (!outFile.exists() || cachedVersion != POI_BUNDLE_VERSION) {
-                    Log.d(
-                        TAG,
-                        "Copying pois-nl.geojson from assets (cached=$cachedVersion, " +
-                            "current=$POI_BUNDLE_VERSION)...",
-                    )
-                    context.assets.open("pois-nl.geojson").use { input ->
-                        outFile.outputStream().use { output -> input.copyTo(output) }
-                    }
-                    versionFile.writeText(POI_BUNDLE_VERSION.toString())
-                    Log.d(TAG, "Copied pois-nl.geojson (${outFile.length() / 1024} KB) to ${outFile.absolutePath}")
+    // The bundled GeoJSON is ~32 MB. Always run the staging path on a
+    // worker thread (post setUri back to main when done) so we don't
+    // stall the UI on the first launch when the asset still has to be
+    // copied out, AND so the URI swap is consistently scheduled the
+    // same way for every call - this matches what was working before
+    // the debug-panel refactor.
+    Thread {
+        try {
+            val outFile = java.io.File(context.filesDir, "pois-nl.geojson")
+            val versionFile = java.io.File(context.filesDir, "pois-nl.version")
+            val cachedVersion = versionFile.takeIf { it.exists() }
+                ?.runCatching { readText().trim().toInt() }?.getOrNull() ?: -1
+            val needsCopy = !outFile.exists() || cachedVersion != POI_BUNDLE_VERSION
+            if (needsCopy) {
+                Log.d(
+                    TAG,
+                    "Copying pois-nl.geojson from assets (cached=$cachedVersion, " +
+                        "current=$POI_BUNDLE_VERSION)...",
+                )
+                context.assets.open("pois-nl.geojson").use { input ->
+                    outFile.outputStream().use { output -> input.copyTo(output) }
                 }
-                val uri = "file://${outFile.absolutePath}"
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    Log.d(TAG, "Setting POI source URI: $uri")
-                    source.setUri(uri)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to stage pois-nl.geojson", e)
+                versionFile.writeText(POI_BUNDLE_VERSION.toString())
+                Log.d(TAG, "Copied pois-nl.geojson (${outFile.length() / 1024} KB) to ${outFile.absolutePath}")
+            } else {
+                Log.d(TAG, "Reusing existing pois-nl.geojson (${outFile.length() / 1024} KB)")
             }
-        }.start()
-    }
+            val uri = "file://${outFile.absolutePath}"
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                Log.d(TAG, "Setting POI source URI: $uri")
+                source.setUri(uri)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to stage pois-nl.geojson", e)
+        }
+    }.start()
 
     val categoryColorExpr = Expression.match(
         Expression.get("category"),
