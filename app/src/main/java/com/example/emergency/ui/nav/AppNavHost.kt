@@ -617,8 +617,13 @@ fun AppNavHost() {
                 state = SampleMapUiState,
                 onBack = { navController.popBackStack() },
                 onOpenRegions = { navController.navigate(Route.Regions.path) },
-                onStartNavigation = { result, profile ->
-                    PendingNavigation.current = PendingNavigation.Handoff(result, profile)
+                onStartNavigation = { result, profile, destination ->
+                    PendingNavigation.current = PendingNavigation.Handoff(
+                        route = result,
+                        profile = profile,
+                        destinationName = destination?.name,
+                        destinationCategory = destination?.category,
+                    )
                     navController.navigate(Route.Navigation.path)
                 },
                 initialDestination = dest,
@@ -667,6 +672,8 @@ fun AppNavHost() {
                 NavigationScreen(
                     initialRoute = handoff.route,
                     profile = handoff.profile,
+                    destinationName = handoff.destinationName,
+                    destinationCategory = handoff.destinationCategory,
                     onBack = { navController.popBackStack() },
                 )
             } else {

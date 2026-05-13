@@ -225,7 +225,7 @@ fun InteractiveMap(
     modifier: Modifier = Modifier,
     initialDestination: MapDestination? = null,
     onOpenRegions: () -> Unit = {},
-    onStartNavigation: (OfflineRouter.Result, NavigationProfile) -> Unit = { _, _ -> },
+    onStartNavigation: (OfflineRouter.Result, NavigationProfile, MapDestination?) -> Unit = { _, _, _ -> },
 ) {
     val context = LocalContext.current
 
@@ -273,14 +273,14 @@ fun InteractiveMap(
     // dots are visible at every zoom level (the user was complaining
     // they had to zoom in too far to see anything). Flip it back on
     // from the panel if perf on country-wide zoom gets bad.
-    var debugClusteringEnabled by remember { mutableStateOf(false) }
-    // 50px matches MapLibre's default and is roughly the screen footprint of
-    // our 26px cluster bubble plus padding. Going much tighter (we tried 15)
-    // means individual POIs at country-zoom don't aggregate at all, defeating
-    // the point of clustering. Max zoom 14: clusters break apart at city
-    // level so the user sees individual category icons when zoomed in.
-    var debugClusterRadius by remember { mutableStateOf(50f) }
-    var debugClusterMaxZoom by remember { mutableStateOf(13f) }
+    // Defaults: clustering ON, tight 16px radius (only merges essentially
+    // overlapping POIs), break-apart at z15 (street zoom shows individual
+    // pins). Combined with the layer minZoom (z6) below, this keeps render
+    // load bounded - country-zoom only ever paints clusters, never the
+    // tens of thousands of raw POIs.
+    var debugClusteringEnabled by remember { mutableStateOf(true) }
+    var debugClusterRadius by remember { mutableStateOf(16f) }
+    var debugClusterMaxZoom by remember { mutableStateOf(15f) }
     var debugPoiScale by remember { mutableStateOf(1f) }
     var debugExpanded by remember { mutableStateOf(false) }
 
@@ -623,7 +623,9 @@ fun InteractiveMap(
                 onOpenRegions = onOpenRegions,
                 onStart = {
                     routeOutcome?.successOrNull()?.let { result ->
-                        onStartNavigation(result, mode.navProfile)
+                        val poi = selectedPoi
+                        val dest = poi?.let { MapDestination(it.name, it.category, it.lat, it.lon) }
+                        onStartNavigation(result, mode.navProfile, dest)
                     }
                 },
                 modifier = Modifier
@@ -1134,7 +1136,13 @@ private fun addPoiLayer(
         val resId = context.resources.getIdentifier("ic_poi_$name", "drawable", context.packageName)
         if (resId != 0) {
             drawableToBitmap(context, resId)?.let { bmp ->
-                style.addImage("$name-icon", bmp)
+                // sdf=true: MapLibre treats the alpha channel as a signed
+                // distance field, so the silhouette renders crisply at any
+                // size (no anti-aliasing artifacts that made the white
+                // outline look black at small zoom). The actual fill colour
+                // comes from the layer's iconColor, so the bundled PNG can
+                // be any colour - only the alpha shape matters.
+                style.addImage("$name-icon", bmp, true)
             }
         }
     }
@@ -1236,6 +1244,10 @@ private fun addPoiLayer(
         ),
     )
     clusterCircle.setFilter(clustered)
+    // minZoom 5: at world/continent zoom there's nothing useful to render -
+    // skip the cluster layer entirely so MapLibre doesn't pay the
+    // tile-feature query cost across the whole pack at z<5.
+    clusterCircle.minZoom = 5f
     runCatching { style.addLayer(clusterCircle) }
         .onFailure { Log.e(TAG, "addLayer clusters-layer failed", it) }
 
@@ -1269,6 +1281,7 @@ private fun addPoiLayer(
         PropertyFactory.circleColor(categoryColorExpr),
     )
     poiCircle.setFilter(unclustered)
+    poiCircle.minZoom = 5f
     runCatching { style.addLayer(poiCircle) }
         .onFailure { Log.e(TAG, "addLayer pois-layer failed", it) }
 
@@ -1276,24 +1289,25 @@ private fun addPoiLayer(
         PropertyFactory.iconImage(
             Expression.concat(Expression.get("category"), Expression.literal("-icon"))
         ),
-        // The bundled icons are 96 px white-on-transparent PNGs. Anything
-        // smaller than ~16 px on screen makes the anti-aliased edges blend
-        // with the colored circle behind it - the user perceives the white
-        // outline "turning black" as zoom changes. Don't render below z13,
-        // and keep the minimum size around 17 px so edges stay clean.
+        // SDF icons stay crisp at any size, so the size ramp can start
+        // earlier (z12) without the old downscaling artefacts. iconColor
+        // tints the silhouette to white on top of the colored category
+        // circle - same look as before but no black-edge halo at low zoom.
+        PropertyFactory.iconColor("#FFFFFF"),
         PropertyFactory.iconSize(
             Expression.interpolate(
                 Expression.linear(), Expression.zoom(),
-                Expression.stop(13, 0.18f * poiScale),
-                Expression.stop(15, 0.24f * poiScale),
-                Expression.stop(17, 0.30f * poiScale),
-                Expression.stop(19, 0.36f * poiScale),
+                Expression.stop(12, 0.16f * poiScale),
+                Expression.stop(14, 0.22f * poiScale),
+                Expression.stop(16, 0.28f * poiScale),
+                Expression.stop(18, 0.34f * poiScale),
             )
         ),
         PropertyFactory.iconAllowOverlap(true),
         PropertyFactory.iconIgnorePlacement(true),
     )
     poiIcon.setFilter(unclustered)
+    poiIcon.minZoom = 12f
     runCatching { style.addLayer(poiIcon) }
         .onFailure { Log.e(TAG, "addLayer pois-icons-layer failed (likely glyphs/icons missing)", it) }
 
@@ -1310,6 +1324,7 @@ private fun addPoiLayer(
         PropertyFactory.iconIgnorePlacement(true),
     )
     countLayer.setFilter(clustered)
+    countLayer.minZoom = 5f
     runCatching { style.addLayer(countLayer) }
         .onFailure { Log.e(TAG, "addLayer clusters-count-layer failed", it) }
 }

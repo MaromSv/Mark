@@ -38,7 +38,7 @@ fun MapScreen(
     state: MapUiState,
     onBack: () -> Unit = {},
     onOpenRegions: () -> Unit = {},
-    onStartNavigation: (OfflineRouter.Result, NavigationProfile) -> Unit = { _, _ -> },
+    onStartNavigation: (OfflineRouter.Result, NavigationProfile, MapDestination?) -> Unit = { _, _, _ -> },
     initialDestination: MapDestination? = null,
     @Suppress("UNUSED_PARAMETER") onFilterClick: (MapFilter) -> Unit = {},
     @Suppress("UNUSED_PARAMETER") onPoiClick: (MapPoi) -> Unit = {},

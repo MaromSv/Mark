@@ -135,6 +135,8 @@ private const val TAG = "NavigationScreen"
 fun NavigationScreen(
     initialRoute: OfflineRouter.Result,
     profile: NavigationProfile,
+    destinationName: String? = null,
+    destinationCategory: String? = null,
     onBack: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -262,7 +264,13 @@ fun NavigationScreen(
             map.setStyle(Style.Builder().fromJson(styleJson)) { style ->
                 routeSource = addRouteLayer(style, initialRoute.polyline)
                 userSource = addUserLayer(style)
-                addDestinationLayer(style, initialRoute.polyline.last())
+                addDestinationLayer(
+                    context = context,
+                    style = style,
+                    destination = initialRoute.polyline.last(),
+                    name = destinationName,
+                    category = destinationCategory,
+                )
             }
             map.addOnCameraMoveStartedListener { reason ->
                 // 1 = USER_GESTURE - signals we should show the recenter
@@ -700,30 +708,131 @@ private fun addRouteLayer(style: Style, polyline: List<LatLng>): GeoJsonSource {
     return src
 }
 
-// Static red marker at the route's last point so the destination is always
-// visible on screen. Static (no source returned) because the destination
-// doesn't change once nav has started; reroutes keep the same endpoint.
-private fun addDestinationLayer(style: Style, destination: LatLng) {
+// Red halo + dot at the route's last point, plus optional category icon
+// inside the dot and a name label beneath. Icon is registered as an SDF
+// image so it scales cleanly; the name label is rendered to a bitmap via
+// Android Canvas (the bundled style.json ships without glyphs, so we
+// can't use textField). Static (no source returned) - reroutes keep the
+// same endpoint.
+private fun addDestinationLayer(
+    context: Context,
+    style: Style,
+    destination: LatLng,
+    name: String?,
+    category: String?,
+) {
     val src = GeoJsonSource("nav-dest-source")
+    val props = com.google.gson.JsonObject().apply {
+        if (!category.isNullOrBlank()) addProperty("category", category)
+        if (!name.isNullOrBlank()) addProperty("name", name)
+    }
     src.setGeoJson(
-        Feature.fromGeometry(Point.fromLngLat(destination.longitude, destination.latitude)),
+        Feature.fromGeometry(
+            Point.fromLngLat(destination.longitude, destination.latitude),
+            props,
+        ),
     )
     style.addSource(src)
     style.addLayer(
         CircleLayer("nav-dest-halo", "nav-dest-source").withProperties(
             PropertyFactory.circleColor("#C0392B"),
             PropertyFactory.circleOpacity(0.22f),
-            PropertyFactory.circleRadius(20f),
+            PropertyFactory.circleRadius(22f),
         ),
     )
     style.addLayer(
         CircleLayer("nav-dest-dot", "nav-dest-source").withProperties(
             PropertyFactory.circleColor("#C0392B"),
-            PropertyFactory.circleRadius(11f),
+            PropertyFactory.circleRadius(13f),
             PropertyFactory.circleStrokeColor("#FFFFFF"),
             PropertyFactory.circleStrokeWidth(2.5f),
         ),
     )
+
+    // Register the category icon as an SDF image so we can tint it white
+    // (matches the look on InteractiveMap's POI layer).
+    if (!category.isNullOrBlank()) {
+        val resId = context.resources
+            .getIdentifier("ic_poi_$category", "drawable", context.packageName)
+        if (resId != 0) {
+            val bmp = drawableToBitmap(context, resId)
+            if (bmp != null) {
+                runCatching { style.addImage("$category-icon", bmp, true) }
+                style.addLayer(
+                    SymbolLayer("nav-dest-icon", "nav-dest-source").withProperties(
+                        PropertyFactory.iconImage("$category-icon"),
+                        PropertyFactory.iconColor("#FFFFFF"),
+                        PropertyFactory.iconSize(0.22f),
+                        PropertyFactory.iconAllowOverlap(true),
+                        PropertyFactory.iconIgnorePlacement(true),
+                    ),
+                )
+            }
+        }
+    }
+
+    // Name label: render to a bitmap and use as iconImage on a separate
+    // symbol layer offset below the dot. One-off so we just generate it
+    // here; it never changes once nav has started.
+    if (!name.isNullOrBlank()) {
+        val density = context.resources.displayMetrics.density
+        val labelBmp = makeNameLabel(name, density)
+        val imageId = "nav-dest-label"
+        runCatching { style.addImage(imageId, labelBmp) }
+        style.addLayer(
+            SymbolLayer("nav-dest-name", "nav-dest-source").withProperties(
+                PropertyFactory.iconImage(imageId),
+                PropertyFactory.iconAllowOverlap(true),
+                PropertyFactory.iconIgnorePlacement(true),
+                PropertyFactory.iconAnchor("top"),
+                PropertyFactory.iconOffset(arrayOf(0f, 16f)),
+            ),
+        )
+    }
+}
+
+/**
+ * Renders [name] as dark-text-on-light-pill so it stays readable against
+ * any basemap colour. Used as the destination name label image since the
+ * bundled style ships without glyphs.
+ */
+private fun makeNameLabel(name: String, density: Float): android.graphics.Bitmap {
+    val paddingPx = (8 * density)
+    val textPx = (12 * density)
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.parseColor("#111111")
+        textAlign = android.graphics.Paint.Align.LEFT
+        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        textSize = textPx
+    }
+    val trimmed = if (name.length > 36) name.take(34) + "..." else name
+    val textWidth = paint.measureText(trimmed)
+    val w = (textWidth + paddingPx * 2).toInt().coerceAtLeast(80)
+    val h = (textPx + paddingPx * 2).toInt()
+    val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bmp)
+    val bgPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.argb(235, 255, 255, 255)
+    }
+    val radius = h / 2f
+    canvas.drawRoundRect(0f, 0f, w.toFloat(), h.toFloat(), radius, radius, bgPaint)
+    val baseline = h / 2f - (paint.descent() + paint.ascent()) / 2f
+    canvas.drawText(trimmed, paddingPx, baseline, paint)
+    return bmp
+}
+
+// Same rasterise-via-Canvas trick as InteractiveMap.drawableToBitmap;
+// duplicated here so this file stays self-contained without exposing the
+// helper across module boundaries.
+private fun drawableToBitmap(context: Context, resId: Int): android.graphics.Bitmap? {
+    val drawable = androidx.core.content.ContextCompat.getDrawable(context, resId) ?: return null
+    if (drawable is android.graphics.drawable.BitmapDrawable) return drawable.bitmap
+    val w = drawable.intrinsicWidth.takeIf { it > 0 } ?: 96
+    val h = drawable.intrinsicHeight.takeIf { it > 0 } ?: 96
+    val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+    drawable.setBounds(0, 0, w, h)
+    drawable.draw(android.graphics.Canvas(bmp))
+    return bmp
 }
 
 private fun addUserLayer(style: Style): GeoJsonSource {

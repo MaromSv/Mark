@@ -25,6 +25,11 @@ object PendingNavigation {
     data class Handoff(
         val route: OfflineRouter.Result,
         val profile: NavigationProfile,
+        // Optional destination metadata used by NavigationScreen to draw an
+        // icon + name label on the route endpoint. Null when the caller
+        // doesn't have it (e.g. ad-hoc map taps without category context).
+        val destinationName: String? = null,
+        val destinationCategory: String? = null,
     )
 
     fun take(): Handoff? {
