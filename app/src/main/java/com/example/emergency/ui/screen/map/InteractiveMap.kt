@@ -280,7 +280,7 @@ fun InteractiveMap(
     // the point of clustering. Max zoom 14: clusters break apart at city
     // level so the user sees individual category icons when zoomed in.
     var debugClusterRadius by remember { mutableStateOf(50f) }
-    var debugClusterMaxZoom by remember { mutableStateOf(14f) }
+    var debugClusterMaxZoom by remember { mutableStateOf(13f) }
     var debugPoiScale by remember { mutableStateOf(1f) }
     var debugExpanded by remember { mutableStateOf(false) }
 
@@ -426,11 +426,16 @@ fun InteractiveMap(
                 val pt = map.projection.toScreenLocation(latLng)
                 val touchRect = RectF(pt.x - 30, pt.y - 30, pt.x + 30, pt.y + 30)
 
-                // Cluster tap first: query the cluster circles. If hit,
-                // animate to the zoom level where this cluster breaks apart
-                // (MapLibre's getClusterExpansionZoom gives the precise
-                // value; fall back to current+2 if it isn't available).
-                val clusterHits = map.queryRenderedFeatures(touchRect, "clusters-layer")
+                // Cluster tap first: query the cluster circles + count
+                // badge (the count icon sits on top of the bubble, so a
+                // direct tap on the number must also count as a cluster
+                // hit). If hit, animate to the zoom level where this
+                // cluster breaks apart (MapLibre's getClusterExpansionZoom
+                // gives the precise value; fall back to current+2 if it
+                // isn't available).
+                val clusterHits = map.queryRenderedFeatures(
+                    touchRect, "clusters-layer", "clusters-count-layer",
+                )
                 if (clusterHits.isNotEmpty()) {
                     val cluster = clusterHits[0]
                     val coord = cluster.geometry() as? Point
@@ -745,7 +750,7 @@ private fun DebugPanel(
         DebugSlider(
             label = "cluster radius",
             initial = clusterRadius,
-            valueRange = 1f..120f,
+            valueRange = 1f..300f,
             formatDisplay = { "${it.toInt()} px" },
             onCommit = onClusterRadiusChange,
             fg = fg, dim = dim,
@@ -1271,15 +1276,18 @@ private fun addPoiLayer(
         PropertyFactory.iconImage(
             Expression.concat(Expression.get("category"), Expression.literal("-icon"))
         ),
-        // Icons only meaningful once the underlying circle is large
-        // enough to host them - below z12 just the colored dot reads.
+        // The bundled icons are 96 px white-on-transparent PNGs. Anything
+        // smaller than ~16 px on screen makes the anti-aliased edges blend
+        // with the colored circle behind it - the user perceives the white
+        // outline "turning black" as zoom changes. Don't render below z13,
+        // and keep the minimum size around 17 px so edges stay clean.
         PropertyFactory.iconSize(
             Expression.interpolate(
                 Expression.linear(), Expression.zoom(),
-                Expression.stop(12, 0.10f * poiScale),
-                Expression.stop(14, 0.20f * poiScale),
-                Expression.stop(16, 0.26f * poiScale),
-                Expression.stop(18, 0.32f * poiScale),
+                Expression.stop(13, 0.18f * poiScale),
+                Expression.stop(15, 0.24f * poiScale),
+                Expression.stop(17, 0.30f * poiScale),
+                Expression.stop(19, 0.36f * poiScale),
             )
         ),
         PropertyFactory.iconAllowOverlap(true),
@@ -1288,6 +1296,84 @@ private fun addPoiLayer(
     poiIcon.setFilter(unclustered)
     runCatching { style.addLayer(poiIcon) }
         .onFailure { Log.e(TAG, "addLayer pois-icons-layer failed (likely glyphs/icons missing)", it) }
+
+    // Cluster count badges. We can't use SymbolLayer.textField (no glyphs
+    // bundled in style.json), so we pre-render Android Canvas bitmaps for
+    // each count value 2-99 + bucketed labels for 100/500/1k/10k+, then
+    // pick the right image per cluster via a step expression on
+    // point_count. Effectively the same UX as a text label without
+    // requiring a glyphs PBF.
+    addClusterCountBadges(context, style)
+    val countLayer = SymbolLayer("clusters-count-layer", "pois-source").withProperties(
+        PropertyFactory.iconImage(clusterCountImageExpr()),
+        PropertyFactory.iconAllowOverlap(true),
+        PropertyFactory.iconIgnorePlacement(true),
+    )
+    countLayer.setFilter(clustered)
+    runCatching { style.addLayer(countLayer) }
+        .onFailure { Log.e(TAG, "addLayer clusters-count-layer failed", it) }
+}
+
+/**
+ * Pre-renders cluster-count number badges as small white-text bitmaps and
+ * registers them with the style. Uses Android's font system (Paint +
+ * Canvas), so it works even when the style.json ships without a glyphs
+ * URL. Idempotent: re-registering the same image id replaces it.
+ *
+ * Buckets: 2-99 are exact (98 images), then 100+/500+/1k+/10k+. Memory
+ * footprint is ~24x24px x 4 bytes x 102 = ~235 KB - trivial.
+ */
+private fun addClusterCountBadges(context: Context, style: Style) {
+    val density = context.resources.displayMetrics.density
+    for (n in 2..99) {
+        style.addImage("cluster-count-$n", makeCountBadge(n.toString(), density))
+    }
+    style.addImage("cluster-count-100",   makeCountBadge("100+", density))
+    style.addImage("cluster-count-500",   makeCountBadge("500+", density))
+    style.addImage("cluster-count-1000",  makeCountBadge("1k+", density))
+    style.addImage("cluster-count-10000", makeCountBadge("10k+", density))
+}
+
+private fun clusterCountImageExpr(): Expression {
+    // Step expression: pick the largest registered bucket whose key is
+    // <= point_count. MapLibre's step picks the value of the last stop
+    // whose input <= the eval value, with the literal as the < first stop.
+    val stops = mutableListOf<Expression.Stop>()
+    for (n in 3..99) stops.add(Expression.stop(n, "cluster-count-$n"))
+    stops.add(Expression.stop(100, "cluster-count-100"))
+    stops.add(Expression.stop(500, "cluster-count-500"))
+    stops.add(Expression.stop(1000, "cluster-count-1000"))
+    stops.add(Expression.stop(10000, "cluster-count-10000"))
+    return Expression.step(
+        Expression.toNumber(Expression.get("point_count")),
+        Expression.literal("cluster-count-2"),
+        *stops.toTypedArray(),
+    )
+}
+
+/**
+ * Renders [text] centred on a 24dp transparent square as white sans-serif.
+ * Font size shrinks with text length so 2- and 3-character labels still
+ * fit. Used as the cluster-count badge image.
+ */
+private fun makeCountBadge(text: String, density: Float): Bitmap {
+    val sizePx = (24 * density).toInt().coerceAtLeast(48)
+    val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bmp)
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE
+        textAlign = android.graphics.Paint.Align.CENTER
+        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        textSize = when (text.length) {
+            1 -> sizePx * 0.55f
+            2 -> sizePx * 0.46f
+            3 -> sizePx * 0.36f
+            else -> sizePx * 0.30f
+        }
+    }
+    val baseline = sizePx / 2f - (paint.descent() + paint.ascent()) / 2f
+    canvas.drawText(text, sizePx / 2f, baseline, paint)
+    return bmp
 }
 
 private fun addRouteLayer(style: Style): GeoJsonSource {
