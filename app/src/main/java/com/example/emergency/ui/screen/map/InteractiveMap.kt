@@ -269,8 +269,11 @@ fun InteractiveMap(
 
     // ---- Debug knobs (temporary). Bound to the floating debug panel; any
     // change rebuilds the POI source + layers so the user can see the
-    // effect live.
-    var debugClusteringEnabled by remember { mutableStateOf(true) }
+    // effect live. Default is clustering OFF so individual colored POI
+    // dots are visible at every zoom level (the user was complaining
+    // they had to zoom in too far to see anything). Flip it back on
+    // from the panel if perf on country-wide zoom gets bad.
+    var debugClusteringEnabled by remember { mutableStateOf(false) }
     var debugClusterRadius by remember { mutableStateOf(15f) }
     var debugClusterMaxZoom by remember { mutableStateOf(18f) }
     var debugPoiScale by remember { mutableStateOf(1f) }

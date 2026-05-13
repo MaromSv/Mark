@@ -108,6 +108,7 @@ import com.mapbox.mapboxsdk.style.layers.LineLayer
 import com.mapbox.mapboxsdk.style.layers.PropertyFactory
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
@@ -222,6 +223,13 @@ fun NavigationScreen(
     LaunchedEffect(mapView, tileServer) {
         mapView.getMapAsync { map ->
             mapboxMap = map
+            // Match InteractiveMap: hide MapLibre logo/attribution so
+            // the navigation canvas stays clean. OSM ODbL credit lives
+            // on the Settings screen.
+            map.uiSettings.apply {
+                isLogoEnabled = false
+                isAttributionEnabled = false
+            }
             map.cameraPosition = CameraPosition.Builder()
                 .target(initialRoute.polyline.first())
                 .zoom(15.0)
@@ -355,11 +363,17 @@ private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier
     val nav = state as? NavigationState.Navigating
     val progress = nav?.progress
     val steps = state.route.steps
+    // When the engine hasn't ticked yet (no GPS fix yet, fresh start, or
+    // tests on emulator without location) progress is null. Fall back to
+    // the route's first two steps so the banner still tells the user
+    // "Turn left in X m / Then right" instead of an empty "Loading..."
     val currentIdx = progress?.currentStepIndex?.takeIf { it >= 0 }
-    val currentStep = currentIdx?.let { steps.getOrNull(it) }
-    val thenStep = currentIdx?.let { steps.getOrNull(it + 1) }
+    val currentStep = currentIdx?.let { steps.getOrNull(it) } ?: steps.firstOrNull()
+    val thenStep = if (currentIdx != null) steps.getOrNull(currentIdx + 1) else steps.getOrNull(1)
+    val distanceToCurrent = progress?.distanceToNextStepMeters
+        ?: currentStep?.distanceToNextMeters
+        ?: 0.0
     val arrived = state is NavigationState.Arrived
-    val preview = state is NavigationState.Preview
 
     Column(
         modifier = modifier
@@ -384,9 +398,8 @@ private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier
                 Text(
                     text = when {
                         arrived -> "You have arrived"
-                        preview -> "Loading route..."
-                        currentStep == null -> "Follow the route"
-                        else -> primaryManeuverLine(currentStep, progress?.distanceToNextStepMeters ?: 0.0)
+                        currentStep == null -> "Loading route..."
+                        else -> primaryManeuverLine(currentStep, distanceToCurrent)
                     },
                     style = typography.listItem.copy(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
                     color = colors.bg,
@@ -541,8 +554,19 @@ private fun EtaCard(state: NavigationState, modifier: Modifier = Modifier) {
         remainingMin < 60 -> "$remainingMin min"
         else -> "${remainingMin / 60} h ${remainingMin % 60} min"
     }
-    val etaClock = remember(remainingMin) {
-        val arrival = Date(System.currentTimeMillis() + remainingMin * 60_000L)
+    // Re-anchor the arrival clock against wall-clock time every 15 s so
+    // the ETA pushes forward when the user isn't moving (without this,
+    // standing still keeps the clock frozen and the "arrive at 14:32"
+    // pin drifts into the past).
+    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(15_000)
+            nowMillis = System.currentTimeMillis()
+        }
+    }
+    val etaClock = remember(remainingMin, nowMillis) {
+        val arrival = Date(nowMillis + remainingMin * 60_000L)
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(arrival)
     }
 
