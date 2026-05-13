@@ -78,6 +78,8 @@ import com.example.emergency.offline.OfflineRouter
 import com.example.emergency.offline.navigation.NavigationEngine
 import com.example.emergency.offline.navigation.NavigationProfile
 import com.example.emergency.offline.navigation.NavigationState
+import com.example.emergency.offline.pack.RegionPack
+import com.example.emergency.offline.pack.RegionStore
 import com.example.emergency.offline.routing.StepFormatter
 import com.example.emergency.offline.routing.TurnCommand
 import com.example.emergency.offline.routing.TurnStep
@@ -148,6 +150,12 @@ fun NavigationScreen(
     // a freshly-rerouted polyline kicks off a new engine if the caller
     // re-enters this composable with a different route.
     val engine = remember(initialRoute) {
+        Log.d(
+            TAG,
+            "NavigationScreen: route polyline=${initialRoute.polyline.size} pts, " +
+                "steps=${initialRoute.steps.size}, distance=${initialRoute.distanceM}m, " +
+                "duration=${initialRoute.durationS}s, profile=$profile",
+        )
         NavigationEngine(initialRoute, profile)
     }
     val state by engine.state.collectAsState()
@@ -161,7 +169,14 @@ fun NavigationScreen(
     // ACCESS_FINE_LOCATION which the host activity already requested at
     // first launch (see AppNavHost.locationPermissionLauncher).
     LaunchedEffect(engine, context) {
+        var tickCount = 0
         locationFlow(context).collect { loc ->
+            tickCount++
+            // Log every tick for the first 5, then every 10th, so we can
+            // confirm GPS is actually flowing without spamming logcat.
+            if (tickCount <= 5 || tickCount % 10 == 0) {
+                Log.d(TAG, "tick #$tickCount: ${loc.latitude},${loc.longitude} speed=${loc.speed}")
+            }
             engine.tick(
                 rawFix = LatLng(loc.latitude, loc.longitude),
                 speedMps = if (loc.hasSpeed()) loc.speed.toDouble() else 0.0,
@@ -170,15 +185,22 @@ fun NavigationScreen(
         }
     }
 
-    // Offline tile + style plumbing - same skeleton/fallback pattern as
-    // InteractiveMap. Navigation needs the basemap to make any sense.
+    // Offline tile + style plumbing - mirrors InteractiveMap so navigation
+    // sees the same basemap the user picked their destination on. Prefer
+    // an installed region pack (z0-14 detail); fall back to the bundled
+    // skeleton (z0-6 worldwide) only if no pack is installed.
     val bootstrapStatus by OfflineBootstrap.state.collectAsState()
     val offlinePaths: OfflineAssets.Paths? =
         (bootstrapStatus as? OfflineBootstrap.Status.Ready)?.paths
-    val tileServer = remember(offlinePaths) {
-        offlinePaths
-            ?.takeIf { it.skeletonMbtiles.exists() }
-            ?.let { MbtilesServer(it.skeletonMbtiles) }
+    val regionStore = remember { RegionStore.get(context) }
+    val installedPacks: List<RegionPack> by regionStore.state.collectAsState()
+    val tileServer = remember(offlinePaths, installedPacks) {
+        val packTiles = installedPacks
+            .map { it.tilesFile }
+            .firstOrNull { it.exists() }
+        val mbtiles = packTiles
+            ?: offlinePaths?.skeletonMbtiles?.takeIf { it.exists() }
+        mbtiles?.let { MbtilesServer(it) }
     }
     DisposableEffect(tileServer) {
         val s = tileServer
@@ -240,6 +262,7 @@ fun NavigationScreen(
             map.setStyle(Style.Builder().fromJson(styleJson)) { style ->
                 routeSource = addRouteLayer(style, initialRoute.polyline)
                 userSource = addUserLayer(style)
+                addDestinationLayer(style, initialRoute.polyline.last())
             }
             map.addOnCameraMoveStartedListener { reason ->
                 // 1 = USER_GESTURE - signals we should show the recenter
@@ -374,6 +397,11 @@ private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier
         ?: currentStep?.distanceToNextMeters
         ?: 0.0
     val arrived = state is NavigationState.Arrived
+    // BRouter sometimes returns a route with no voice hints (single-segment
+    // beelines, parser miss). Without this branch the banner sticks on
+    // "Loading route..." forever even though the route + GPS are live.
+    val noManeuvers = steps.isEmpty()
+    val remainingForBanner = progress?.remainingMeters ?: state.route.distanceM
 
     Column(
         modifier = modifier
@@ -387,6 +415,7 @@ private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier
                 imageVector = when {
                     arrived -> Icons.Filled.Flag
                     currentStep != null -> turnIcon(currentStep.command)
+                    noManeuvers -> Icons.Filled.Straight
                     else -> Icons.Filled.Place
                 },
                 contentDescription = null,
@@ -398,8 +427,9 @@ private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier
                 Text(
                     text = when {
                         arrived -> "You have arrived"
-                        currentStep == null -> "Loading route..."
-                        else -> primaryManeuverLine(currentStep, distanceToCurrent)
+                        currentStep != null -> primaryManeuverLine(currentStep, distanceToCurrent)
+                        noManeuvers -> "Continue to destination - ${StepFormatter.formatDistance(remainingForBanner)}"
+                        else -> "Loading route..."
                     },
                     style = typography.listItem.copy(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
                     color = colors.bg,
@@ -668,6 +698,32 @@ private fun addRouteLayer(style: Style, polyline: List<LatLng>): GeoJsonSource {
         ),
     )
     return src
+}
+
+// Static red marker at the route's last point so the destination is always
+// visible on screen. Static (no source returned) because the destination
+// doesn't change once nav has started; reroutes keep the same endpoint.
+private fun addDestinationLayer(style: Style, destination: LatLng) {
+    val src = GeoJsonSource("nav-dest-source")
+    src.setGeoJson(
+        Feature.fromGeometry(Point.fromLngLat(destination.longitude, destination.latitude)),
+    )
+    style.addSource(src)
+    style.addLayer(
+        CircleLayer("nav-dest-halo", "nav-dest-source").withProperties(
+            PropertyFactory.circleColor("#C0392B"),
+            PropertyFactory.circleOpacity(0.22f),
+            PropertyFactory.circleRadius(20f),
+        ),
+    )
+    style.addLayer(
+        CircleLayer("nav-dest-dot", "nav-dest-source").withProperties(
+            PropertyFactory.circleColor("#C0392B"),
+            PropertyFactory.circleRadius(11f),
+            PropertyFactory.circleStrokeColor("#FFFFFF"),
+            PropertyFactory.circleStrokeWidth(2.5f),
+        ),
+    )
 }
 
 private fun addUserLayer(style: Style): GeoJsonSource {
