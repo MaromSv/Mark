@@ -282,6 +282,11 @@ fun InteractiveMap(
     var debugClusterRadius by remember { mutableStateOf(16f) }
     var debugClusterMaxZoom by remember { mutableStateOf(15f) }
     var debugPoiScale by remember { mutableStateOf(1f) }
+    // Layer minZoom: below this zoom the POI / cluster layers are
+    // skipped entirely. The right knob for "don't pay the tile-feature
+    // cost at world view" - tighten when render feels heavy, loosen
+    // when you want clusters visible while panning the whole country.
+    var debugPoiMinZoom by remember { mutableStateOf(5f) }
     var debugExpanded by remember { mutableStateOf(false) }
 
     // Offline data plane: staging is kicked off at process start by
@@ -413,6 +418,7 @@ fun InteractiveMap(
                         clusterRadius = debugClusterRadius.toInt(),
                         clusterMaxZoom = debugClusterMaxZoom.toInt(),
                         poiScale = debugPoiScale,
+                        minVisibleZoom = debugPoiMinZoom,
                     )
                     routeSource = addRouteLayer(style)
                     userLocationSource = addUserLocationLayer(style)
@@ -489,6 +495,7 @@ fun InteractiveMap(
         debugClusterRadius,
         debugClusterMaxZoom,
         debugPoiScale,
+        debugPoiMinZoom,
     ) {
         val style = mapboxMap?.style ?: return@LaunchedEffect
         if (!style.isFullyLoaded) return@LaunchedEffect
@@ -499,6 +506,7 @@ fun InteractiveMap(
                 clusterRadius = debugClusterRadius.toInt(),
                 clusterMaxZoom = debugClusterMaxZoom.toInt(),
                 poiScale = debugPoiScale,
+                minVisibleZoom = debugPoiMinZoom,
             )
         }.onFailure { Log.e(TAG, "Debug rebuild failed", it) }
     }
@@ -660,6 +668,8 @@ fun InteractiveMap(
             onClusterMaxZoomChange = { debugClusterMaxZoom = it },
             poiScale = debugPoiScale,
             onPoiScaleChange = { debugPoiScale = it },
+            poiMinZoom = debugPoiMinZoom,
+            onPoiMinZoomChange = { debugPoiMinZoom = it },
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 12.dp, bottom = 12.dp),
@@ -699,6 +709,8 @@ private fun DebugPanel(
     onClusterMaxZoomChange: (Float) -> Unit,
     poiScale: Float,
     onPoiScaleChange: (Float) -> Unit,
+    poiMinZoom: Float,
+    onPoiMinZoomChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val bg = Color(0xCC111111)
@@ -771,6 +783,14 @@ private fun DebugPanel(
             valueRange = 0.3f..3f,
             formatDisplay = { "%.1fx".format(it) },
             onCommit = onPoiScaleChange,
+            fg = fg, dim = dim,
+        )
+        DebugSlider(
+            label = "POI min zoom",
+            initial = poiMinZoom,
+            valueRange = 0f..18f,
+            formatDisplay = { "z${it.toInt()}" },
+            onCommit = onPoiMinZoomChange,
             fg = fg, dim = dim,
         )
     }
@@ -1109,6 +1129,7 @@ private fun addPoiLayer(
     clusterRadius: Int = 15,
     clusterMaxZoom: Int = 18,
     poiScale: Float = 1f,
+    minVisibleZoom: Float = 5f,
 ) {
     Log.d(
         TAG,
@@ -1244,10 +1265,10 @@ private fun addPoiLayer(
         ),
     )
     clusterCircle.setFilter(clustered)
-    // minZoom 5: at world/continent zoom there's nothing useful to render -
-    // skip the cluster layer entirely so MapLibre doesn't pay the
-    // tile-feature query cost across the whole pack at z<5.
-    clusterCircle.minZoom = 5f
+    // minVisibleZoom comes from the debug slider. Below it the layer is
+    // skipped entirely so MapLibre doesn't pay the tile-feature query
+    // cost across the whole pack at world/continent zoom.
+    clusterCircle.minZoom = minVisibleZoom
     runCatching { style.addLayer(clusterCircle) }
         .onFailure { Log.e(TAG, "addLayer clusters-layer failed", it) }
 
@@ -1281,7 +1302,7 @@ private fun addPoiLayer(
         PropertyFactory.circleColor(categoryColorExpr),
     )
     poiCircle.setFilter(unclustered)
-    poiCircle.minZoom = 5f
+    poiCircle.minZoom = minVisibleZoom
     runCatching { style.addLayer(poiCircle) }
         .onFailure { Log.e(TAG, "addLayer pois-layer failed", it) }
 
@@ -1307,7 +1328,10 @@ private fun addPoiLayer(
         PropertyFactory.iconIgnorePlacement(true),
     )
     poiIcon.setFilter(unclustered)
-    poiIcon.minZoom = 12f
+    // Icons need the dot to be big enough to host them - keep z12 floor
+    // even if the slider is lower, so the icon never floats off a tiny
+    // 4 px circle. But never *above* what the user picked.
+    poiIcon.minZoom = kotlin.math.max(minVisibleZoom, 12f)
     runCatching { style.addLayer(poiIcon) }
         .onFailure { Log.e(TAG, "addLayer pois-icons-layer failed (likely glyphs/icons missing)", it) }
 
@@ -1320,11 +1344,17 @@ private fun addPoiLayer(
     addClusterCountBadges(context, style)
     val countLayer = SymbolLayer("clusters-count-layer", "pois-source").withProperties(
         PropertyFactory.iconImage(clusterCountImageExpr()),
+        // The count badges are added as SDF (see addClusterCountBadges).
+        // iconColor tints the silhouette white so the number reads
+        // crisply at every zoom - without SDF the anti-aliased white
+        // edges blend with the blue bubble at low zooms and the
+        // numeral can look dark grey/black.
+        PropertyFactory.iconColor("#FFFFFF"),
         PropertyFactory.iconAllowOverlap(true),
         PropertyFactory.iconIgnorePlacement(true),
     )
     countLayer.setFilter(clustered)
-    countLayer.minZoom = 5f
+    countLayer.minZoom = minVisibleZoom
     runCatching { style.addLayer(countLayer) }
         .onFailure { Log.e(TAG, "addLayer clusters-count-layer failed", it) }
 }
@@ -1340,13 +1370,17 @@ private fun addPoiLayer(
  */
 private fun addClusterCountBadges(context: Context, style: Style) {
     val density = context.resources.displayMetrics.density
+    // sdf=true lets MapLibre render the alpha-channel silhouette at any
+    // size without scaling artefacts and tint it via iconColor on the
+    // layer. Without SDF, downscaling at low zoom blends white text
+    // edges with the bubble fill - the user sees the number as black.
     for (n in 2..99) {
-        style.addImage("cluster-count-$n", makeCountBadge(n.toString(), density))
+        style.addImage("cluster-count-$n", makeCountBadge(n.toString(), density), true)
     }
-    style.addImage("cluster-count-100",   makeCountBadge("100+", density))
-    style.addImage("cluster-count-500",   makeCountBadge("500+", density))
-    style.addImage("cluster-count-1000",  makeCountBadge("1k+", density))
-    style.addImage("cluster-count-10000", makeCountBadge("10k+", density))
+    style.addImage("cluster-count-100",   makeCountBadge("100+", density), true)
+    style.addImage("cluster-count-500",   makeCountBadge("500+", density), true)
+    style.addImage("cluster-count-1000",  makeCountBadge("1k+", density), true)
+    style.addImage("cluster-count-10000", makeCountBadge("10k+", density), true)
 }
 
 private fun clusterCountImageExpr(): Expression {

@@ -78,6 +78,7 @@ import com.example.emergency.offline.OfflineRouter
 import com.example.emergency.offline.navigation.NavigationEngine
 import com.example.emergency.offline.navigation.NavigationProfile
 import com.example.emergency.offline.navigation.NavigationState
+import com.example.emergency.offline.navigation.PolylineTurnSynthesizer
 import com.example.emergency.offline.pack.RegionPack
 import com.example.emergency.offline.pack.RegionStore
 import com.example.emergency.offline.routing.StepFormatter
@@ -411,6 +412,19 @@ private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier
     // "Loading route..." forever even though the route + GPS are live.
     val noManeuvers = steps.isEmpty()
     val remainingForBanner = progress?.remainingMeters ?: state.route.distanceM
+    // When BRouter gave us no voice hints, synthesise the next turn from
+    // the polyline geometry so the user still sees "Turn left in 200 m"
+    // instead of just the straight-line distance to the destination.
+    val syntheticNext = if (noManeuvers && progress != null && !arrived) {
+        PolylineTurnSynthesizer.nextTurn(
+            polyline = state.route.polyline,
+            snappedPoint = progress.snappedPoint,
+            snappedSegmentIndex = progress.snappedSegmentIndex,
+        )
+    } else null
+    val syntheticThen = syntheticNext?.let {
+        PolylineTurnSynthesizer.turnAfter(state.route.polyline, it)
+    }
 
     Column(
         modifier = modifier
@@ -424,6 +438,7 @@ private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier
                 imageVector = when {
                     arrived -> Icons.Filled.Flag
                     currentStep != null -> turnIcon(currentStep.command)
+                    syntheticNext != null -> turnIcon(syntheticNext.command)
                     noManeuvers -> Icons.Filled.Straight
                     else -> Icons.Filled.Place
                 },
@@ -437,6 +452,7 @@ private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier
                     text = when {
                         arrived -> "You have arrived"
                         currentStep != null -> primaryManeuverLine(currentStep, distanceToCurrent)
+                        syntheticNext != null -> primaryFromSynthetic(syntheticNext)
                         noManeuvers -> "Continue to destination - ${StepFormatter.formatDistance(remainingForBanner)}"
                         else -> "Loading route..."
                     },
@@ -457,20 +473,29 @@ private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier
         }
 
         // Secondary line: "Then right onto Spuistraat" — only when there's a turn after.
-        if (!arrived && thenStep != null && thenStep.command !is TurnCommand.Continue) {
+        // Pulls from BRouter steps when present, otherwise from the synthesized fallback.
+        val thenSyntheticCommand = syntheticThen
+            ?.takeIf { it.command !is TurnCommand.Continue && it.command !is TurnCommand.Arrive }
+        val showThen = !arrived && (
+            (thenStep != null && thenStep.command !is TurnCommand.Continue) ||
+                thenSyntheticCommand != null
+            )
+        if (showThen) {
             Spacer(Modifier.size(10.dp))
             HorizontalDivider(color = colors.bg.copy(alpha = 0.18f), thickness = 1.dp)
             Spacer(Modifier.size(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val cmd = thenStep?.command ?: thenSyntheticCommand!!.command
                 Icon(
-                    imageVector = turnIcon(thenStep.command),
+                    imageVector = turnIcon(cmd),
                     contentDescription = null,
                     tint = colors.bg.copy(alpha = 0.85f),
                     modifier = Modifier.size(22.dp),
                 )
                 Spacer(Modifier.size(10.dp))
                 Text(
-                    text = "Then ${secondaryManeuverLine(thenStep)}",
+                    text = "Then " + (thenStep?.let { secondaryManeuverLine(it) }
+                        ?: primaryVerb(cmd).replaceFirstChar { it.lowercase() }),
                     style = typography.helper.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
                     color = colors.bg.copy(alpha = 0.85f),
                     maxLines = 1,
@@ -478,6 +503,20 @@ private fun ManeuverBanner(state: NavigationState, modifier: Modifier = Modifier
             }
         }
     }
+}
+
+/**
+ * Same shape as [primaryManeuverLine] but for a synthesised turn (no
+ * street name, command pulled from polyline geometry instead of BRouter
+ * voice hints).
+ */
+private fun primaryFromSynthetic(turn: PolylineTurnSynthesizer.SyntheticTurn): String {
+    if (turn.command == TurnCommand.Arrive) {
+        return "Arrive in ${StepFormatter.formatDistance(turn.distanceMeters)}"
+    }
+    val verb = primaryVerb(turn.command)
+    val distLabel = StepFormatter.formatDistance(turn.distanceMeters)
+    return if (turn.distanceMeters < 25.0) "$verb now" else "$verb in $distLabel"
 }
 
 /** Primary banner phrasing: "Turn left in 200 m" / "Turn left now". */
