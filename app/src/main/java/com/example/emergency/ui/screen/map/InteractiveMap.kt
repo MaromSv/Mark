@@ -286,7 +286,7 @@ fun InteractiveMap(
     // skipped entirely. The right knob for "don't pay the tile-feature
     // cost at world view" - tighten when render feels heavy, loosen
     // when you want clusters visible while panning the whole country.
-    var debugPoiMinZoom by remember { mutableStateOf(5f) }
+    var debugPoiMinZoom by remember { mutableStateOf(10f) }
     var debugExpanded by remember { mutableStateOf(false) }
 
     // Offline data plane: staging is kicked off at process start by

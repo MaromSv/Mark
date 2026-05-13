@@ -379,6 +379,7 @@ fun NavigationScreen(
         // Bottom: ETA / arrived / preview card.
         EtaCard(
             state = state,
+            destinationName = destinationName,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -613,7 +614,11 @@ private fun OffRouteBanner(state: NavigationState) {
 }
 
 @Composable
-private fun EtaCard(state: NavigationState, modifier: Modifier = Modifier) {
+private fun EtaCard(
+    state: NavigationState,
+    destinationName: String? = null,
+    modifier: Modifier = Modifier,
+) {
     val colors = EmergencyTheme.colors
     val typography = EmergencyTheme.typography
     val nav = state as? NavigationState.Navigating
@@ -621,6 +626,23 @@ private fun EtaCard(state: NavigationState, modifier: Modifier = Modifier) {
     val arrived = state is NavigationState.Arrived
     val progress = nav?.progress ?: rerouting?.progress
     val total = state.route.distanceM
+    // Distance to next turn - prefer BRouter's voice-hint distance when
+    // we have one, otherwise synth from the polyline geometry. Same
+    // logic the maneuver banner uses; computed here so the bottom card
+    // can show "in 250 m" alongside the destination name without
+    // duplicating the work.
+    val nextTurnM: Double? = if (nav != null && progress != null && !arrived) {
+        val steps = state.route.steps
+        val idx = progress.currentStepIndex
+        val brouterDist = if (idx >= 0 && idx <= steps.lastIndex) {
+            progress.distanceToNextStepMeters
+        } else null
+        brouterDist ?: PolylineTurnSynthesizer.nextTurn(
+            polyline = state.route.polyline,
+            snappedPoint = progress.snappedPoint,
+            snappedSegmentIndex = progress.snappedSegmentIndex,
+        )?.distanceMeters
+    } else null
     val remainingM = progress?.remainingMeters ?: total
     val remainingLabel = if (remainingM >= 1000) "%.1f km".format(remainingM / 1000)
         else "%.0f m".format(remainingM)
@@ -657,7 +679,7 @@ private fun EtaCard(state: NavigationState, modifier: Modifier = Modifier) {
     ) {
         if (arrived) {
             Text(
-                text = "Arrived",
+                text = if (!destinationName.isNullOrBlank()) "Arrived at $destinationName" else "Arrived",
                 style = typography.listItem.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
                 color = colors.text,
             )
@@ -668,16 +690,31 @@ private fun EtaCard(state: NavigationState, modifier: Modifier = Modifier) {
                 color = colors.textDim,
             )
         } else {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                EtaStat(big = etaClock, small = "arrive")
-                EtaDot()
-                EtaStat(big = timeLabel, small = "left")
-                EtaDot()
-                EtaStat(big = remainingLabel, small = "to go")
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Header line: "Elkerliek Ziekenhuis · Turn in 250 m"
+                if (!destinationName.isNullOrBlank() || nextTurnM != null) {
+                    val nameText = destinationName?.takeIf { it.isNotBlank() }
+                    val turnText = nextTurnM?.let { "Turn in ${StepFormatter.formatDistance(it)}" }
+                    val combined = listOfNotNull(nameText, turnText).joinToString("  -  ")
+                    Text(
+                        text = combined,
+                        style = typography.helper.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium),
+                        color = colors.text,
+                        maxLines = 1,
+                    )
+                    Spacer(Modifier.size(6.dp))
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    EtaStat(big = etaClock, small = "arrive")
+                    EtaDot()
+                    EtaStat(big = timeLabel, small = "left")
+                    EtaDot()
+                    EtaStat(big = remainingLabel, small = "to go")
+                }
             }
         }
     }
