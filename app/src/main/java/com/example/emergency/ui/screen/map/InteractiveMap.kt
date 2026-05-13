@@ -274,8 +274,13 @@ fun InteractiveMap(
     // they had to zoom in too far to see anything). Flip it back on
     // from the panel if perf on country-wide zoom gets bad.
     var debugClusteringEnabled by remember { mutableStateOf(false) }
-    var debugClusterRadius by remember { mutableStateOf(15f) }
-    var debugClusterMaxZoom by remember { mutableStateOf(18f) }
+    // 50px matches MapLibre's default and is roughly the screen footprint of
+    // our 26px cluster bubble plus padding. Going much tighter (we tried 15)
+    // means individual POIs at country-zoom don't aggregate at all, defeating
+    // the point of clustering. Max zoom 14: clusters break apart at city
+    // level so the user sees individual category icons when zoomed in.
+    var debugClusterRadius by remember { mutableStateOf(50f) }
+    var debugClusterMaxZoom by remember { mutableStateOf(14f) }
     var debugPoiScale by remember { mutableStateOf(1f) }
     var debugExpanded by remember { mutableStateOf(false) }
 
@@ -1107,7 +1112,14 @@ private fun addPoiLayer(
     // Idempotent: remove anything we previously attached so the debug
     // panel can rebuild with new options live. Layers must come down
     // before the source, otherwise removeSource throws because the
-    // source is still referenced.
+    // source is still referenced. clusters-count-layer is in this list
+    // for backwards compat - earlier builds attached a SymbolLayer with
+    // a textField for the cluster count. The bundled style ships with
+    // no glyphs URL ("Glyphs are intentionally omitted..."), so that
+    // text layer threw on add and silently skipped every subsequent
+    // POI layer via the surrounding try/catch. We no longer add it -
+    // cluster magnitude is encoded in the bubble's circleRadius step
+    // expression instead.
     listOf("clusters-layer", "clusters-count-layer", "pois-layer", "pois-icons-layer").forEach { id ->
         if (style.getLayer(id) != null) style.removeLayer(id)
     }
@@ -1188,40 +1200,39 @@ private fun addPoiLayer(
     val unclustered = Expression.not(Expression.has("point_count"))
     val clustered = Expression.has("point_count")
 
-    // Cluster bubble: blue circle that grows with the count. Bumped the
-    // base radius (was 16) so single-digit clusters stay visibly tappable
-    // when zoomed out across a country, and stops at higher counts so
-    // urban hot-spots clearly stand out from rural ones.
+    // Cluster bubble: blue circle whose size + tint encode magnitude. We
+    // can't render the count number as text because the bundled style
+    // omits glyphs. Until glyphs ship, magnitude reads from radius (step
+    // expression on point_count) and a slightly darker fill at higher
+    // counts so dense urban clusters pop against sparse rural ones.
     val clusterCircle = CircleLayer("clusters-layer", "pois-source").withProperties(
-        PropertyFactory.circleColor("#1E88E5"),
+        PropertyFactory.circleColor(
+            Expression.step(
+                Expression.toNumber(Expression.get("point_count")),
+                Expression.literal("#42A5F5"),  // < 20: light blue
+                Expression.stop(20,   "#1E88E5"),  // mid blue
+                Expression.stop(100,  "#1565C0"),  // deeper
+                Expression.stop(500,  "#0D47A1"),  // dark
+                Expression.stop(2000, "#082C5C"),  // near-navy
+            )
+        ),
         PropertyFactory.circleStrokeColor("#FFFFFF"),
         PropertyFactory.circleStrokeWidth(3f),
         PropertyFactory.circleOpacity(0.95f),
-        // Bigger across the board so the badges read as "tappable group"
-        // even at country zoom. Was 20/24/30/36/42, now 26/32/40/48/56.
         PropertyFactory.circleRadius(
             Expression.step(
                 Expression.toNumber(Expression.get("point_count")),
-                Expression.literal(26f),
-                Expression.stop(20, 32),
-                Expression.stop(100, 40),
-                Expression.stop(500, 48),
-                Expression.stop(2000, 56),
+                Expression.literal(20f),
+                Expression.stop(20, 28),
+                Expression.stop(100, 36),
+                Expression.stop(500, 44),
+                Expression.stop(2000, 52),
             )
         ),
     )
     clusterCircle.setFilter(clustered)
-    style.addLayer(clusterCircle)
-
-    val clusterCount = SymbolLayer("clusters-count-layer", "pois-source").withProperties(
-        PropertyFactory.textField("{point_count_abbreviated}"),
-        PropertyFactory.textSize(16f),
-        PropertyFactory.textColor("#FFFFFF"),
-        PropertyFactory.textAllowOverlap(true),
-        PropertyFactory.textIgnorePlacement(true),
-    )
-    clusterCount.setFilter(clustered)
-    style.addLayer(clusterCount)
+    runCatching { style.addLayer(clusterCircle) }
+        .onFailure { Log.e(TAG, "addLayer clusters-layer failed", it) }
 
     // Individual POI: colored circle, only when not part of a cluster.
     // Radius grows with zoom. We start drawing from z8 (regional view)
@@ -1253,7 +1264,8 @@ private fun addPoiLayer(
         PropertyFactory.circleColor(categoryColorExpr),
     )
     poiCircle.setFilter(unclustered)
-    style.addLayer(poiCircle)
+    runCatching { style.addLayer(poiCircle) }
+        .onFailure { Log.e(TAG, "addLayer pois-layer failed", it) }
 
     val poiIcon = SymbolLayer("pois-icons-layer", "pois-source").withProperties(
         PropertyFactory.iconImage(
@@ -1274,7 +1286,8 @@ private fun addPoiLayer(
         PropertyFactory.iconIgnorePlacement(true),
     )
     poiIcon.setFilter(unclustered)
-    style.addLayer(poiIcon)
+    runCatching { style.addLayer(poiIcon) }
+        .onFailure { Log.e(TAG, "addLayer pois-icons-layer failed (likely glyphs/icons missing)", it) }
 }
 
 private fun addRouteLayer(style: Style): GeoJsonSource {
