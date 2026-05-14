@@ -165,8 +165,13 @@ fun ChatThreadScreen(
                                     CprWalkthroughCard(onClick = { onOpenTool(toolCall) })
                                 toolCall.toolName == "abc_check" && toolCall.status == "success" ->
                                     AbcCheckCard(onClick = { onOpenTool(toolCall) })
-                                toolCall.toolName == "find_nearest" && toolCall.status == "success" -> {
-                                    val parsed = parseFindNearestCard(toolCall.result)
+                                (toolCall.toolName == "find_nearest" || toolCall.toolName == "route_to") &&
+                                    toolCall.status == "success" -> {
+                                    // Prefer rawResult so route_to's longer JSON
+                                    // (with first_steps + distance) parses cleanly
+                                    // even when the chat-display copy was truncated.
+                                    val payload = toolCall.rawResult.ifBlank { toolCall.result }
+                                    val parsed = parseFindNearestCard(payload)
                                     if (parsed != null) {
                                         MapToolCard(
                                             title = parsed.first,

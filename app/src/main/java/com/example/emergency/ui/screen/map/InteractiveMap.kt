@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.DirectionsCar
@@ -42,15 +43,22 @@ import androidx.compose.material.icons.filled.LocalGroceryStore
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.LocalPolice
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.Wc
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -81,6 +89,13 @@ import com.example.emergency.offline.MbtilesServer
 import com.example.emergency.offline.OfflineAssets
 import com.example.emergency.offline.OfflineBootstrap
 import com.example.emergency.offline.OfflineRouter
+import com.example.emergency.offline.navigation.NavigationProfile
+import com.example.emergency.offline.pack.CatalogProvider
+import com.example.emergency.offline.pack.RegionPack
+import com.example.emergency.offline.pack.RegionStore
+import com.example.emergency.offline.routing.RouteOutcome
+import com.example.emergency.offline.routing.successOrNull
+import java.io.File
 import com.google.android.gms.location.LocationServices
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.FeatureCollection
@@ -140,18 +155,46 @@ internal data class RouteResult(
     val durationS: Double,
 )
 
-private enum class Mode(val brouterProfile: String, val label: String, val icon: ImageVector) {
-    Walk("trekking", "Walk", Icons.Default.DirectionsWalk),
-    Bike("fastbike", "Bike", Icons.Default.DirectionsBike),
-    Drive("car-fast", "Drive", Icons.Default.DirectionsCar),
+private enum class Mode(
+    val brouterProfile: String,
+    val label: String,
+    val icon: ImageVector,
+    val navProfile: NavigationProfile,
+) {
+    // walk.brf is BRouter's foot profile (validForFoot=1) so trip-time falls
+    // out of the StdModel walking-speed defaults, not the bike kinematic
+    // model that trekking/fastbike share. Switching from trekking fixes the
+    // bug where Walk and Bike showed identical durations.
+    Walk("walk", "Walk", Icons.Default.DirectionsWalk, NavigationProfile.Walking),
+    Bike("fastbike", "Bike", Icons.Default.DirectionsBike, NavigationProfile.Biking),
+    Drive("car-fast", "Drive", Icons.Default.DirectionsCar, NavigationProfile.Driving),
+}
+
+/**
+ * Human-readable label for a POI category. Used as a fallback "name"
+ * when an OSM POI has no `name` tag (very common for ATMs, AEDs, public
+ * toilets, drinking-water taps). Mirrors `categoryLabel` in
+ * ChatThreadScreen so the chat preview and the map info card agree.
+ */
+private fun displayLabelForCategory(category: String): String = when (category) {
+    "atm"                 -> "ATM"
+    "aed"                 -> "AED"
+    "first_aid"           -> "Medical post"
+    "parking_underground" -> "Parking"
+    "wc", "toilet"        -> "Toilet"
+    else -> category.replace('_', ' ').replaceFirstChar { it.uppercase() }
 }
 
 private fun categoryIcon(category: String): ImageVector = when (category) {
     "hospital"            -> Icons.Default.LocalHospital
+    "doctor"              -> Icons.Default.MedicalServices
+    "first_aid"           -> Icons.Default.MedicalServices
     "aed"                 -> Icons.Default.Favorite
     "pharmacy"            -> Icons.Default.LocalPharmacy
     "police"              -> Icons.Default.LocalPolice
     "fire"                -> Icons.Default.LocalFireDepartment
+    "water"               -> Icons.Default.WaterDrop
+    "toilet", "wc"        -> Icons.Default.Wc
     "bunker"              -> Icons.Default.Shield
     "fuel"                -> Icons.Default.LocalGasStation
     "supermarket"         -> Icons.Default.LocalGroceryStore
@@ -192,16 +235,34 @@ private fun categoryColor(category: String): Color = when (category) {
 fun InteractiveMap(
     modifier: Modifier = Modifier,
     initialDestination: MapDestination? = null,
+    onOpenRegions: () -> Unit = {},
+    onStartNavigation: (OfflineRouter.Result, NavigationProfile, MapDestination?) -> Unit = { _, _, _ -> },
+    // Flip to true to surface the floating debug panel (cluster sliders,
+    // POI scale, min-zoom). Defaults stay wired even when the panel is
+    // hidden so the map renders identically in both modes.
+    showDebugPanel: Boolean = false,
 ) {
     val context = LocalContext.current
 
-    // Idempotent — MapLibre guards internally against re-entry. Keeping it
+    // Idempotent - MapLibre guards internally against re-entry. Keeping it
     // here means callers don't need to remember to bootstrap from Application
-    // or MainActivity.
+    // or MainActivity. The .also { setConnected } returns the Mapbox
+    // instance so `remember` has a non-Unit value to cache (Compose lint
+    // requires `remember {}` to return something other than Unit).
     remember {
-        Mapbox.getInstance(context, null, WellKnownTileServer.MapLibre)
-        Mapbox.setConnected(true)
+        Mapbox.getInstance(context, null, WellKnownTileServer.MapLibre).also {
+            Mapbox.setConnected(true)
+        }
     }
+
+    // Region pipeline (plan section 6 / Step 6). RegionStore + CatalogProvider feed
+    // the multi-pack OfflineRouter so we can pre-flight routes against the
+    // installed-pack union and return typed outcomes for honest errors.
+    val regionStore = remember { RegionStore.get(context) }
+    val catalogProvider = remember { CatalogProvider.get(context) }
+    val installedPacks: List<RegionPack> by regionStore.state.collectAsState()
+    val catalog by catalogProvider.catalog.collectAsState()
+    val activeRoot = remember { File(context.filesDir, "regions/_active") }
 
     var mode by remember { mutableStateOf(Mode.Walk) }
     var selectedPoi by remember {
@@ -210,6 +271,7 @@ fun InteractiveMap(
         )
     }
     var routeResult by remember { mutableStateOf<RouteResult?>(null) }
+    var routeOutcome by remember { mutableStateOf<RouteOutcome?>(null) }
     var routeLoading by remember { mutableStateOf(false) }
     var userLocation by remember { mutableStateOf(DAM_SQUARE) }
     var routeSource by remember { mutableStateOf<GeoJsonSource?>(null) }
@@ -220,11 +282,33 @@ fun InteractiveMap(
     // getMapAsync.
     var mapboxMap by remember { mutableStateOf<MapboxMap?>(null) }
 
+    // ---- Debug knobs (temporary). Bound to the floating debug panel; any
+    // change rebuilds the POI source + layers so the user can see the
+    // effect live. Default is clustering OFF so individual colored POI
+    // dots are visible at every zoom level (the user was complaining
+    // they had to zoom in too far to see anything). Flip it back on
+    // from the panel if perf on country-wide zoom gets bad.
+    // Defaults: clustering ON, tight 16px radius (only merges essentially
+    // overlapping POIs), break-apart at z15 (street zoom shows individual
+    // pins). Combined with the layer minZoom (z6) below, this keeps render
+    // load bounded - country-zoom only ever paints clusters, never the
+    // tens of thousands of raw POIs.
+    var debugClusteringEnabled by remember { mutableStateOf(true) }
+    var debugClusterRadius by remember { mutableStateOf(16f) }
+    var debugClusterMaxZoom by remember { mutableStateOf(15f) }
+    var debugPoiScale by remember { mutableStateOf(1f) }
+    // Layer minZoom: below this zoom the POI / cluster layers are
+    // skipped entirely. The right knob for "don't pay the tile-feature
+    // cost at world view" - tighten when render feels heavy, loosen
+    // when you want clusters visible while panning the whole country.
+    var debugPoiMinZoom by remember { mutableStateOf(10f) }
+    var debugExpanded by remember { mutableStateOf(false) }
+
     // Offline data plane: staging is kicked off at process start by
     // [com.example.emergency.EmergencyApp], so by the time the map screen
     // mounts the copy is usually already done. We observe the shared state
     // here instead of starting the work ourselves. While staging is still
-    // running, the map UI stays interactive — only the tile server / route
+    // running, the map UI stays interactive - only the tile server / route
     // engine wait for paths to become available.
     val bootstrapStatus by OfflineBootstrap.state.collectAsState()
     val offlinePaths: OfflineAssets.Paths? =
@@ -233,9 +317,28 @@ fun InteractiveMap(
 
     // Tile server lives only while the composable is on screen. Re-keying on
     // [offlinePaths] means it spins up the moment staging completes, even if
-    // the user was already on the map screen.
-    val tileServer = remember(offlinePaths) {
-        offlinePaths?.let { MbtilesServer(it.mbtilesFile) }
+    // the user was already on the map screen. The server is only constructed
+    // when the bundled skeleton mbtiles actually exists on disk - the
+    // skeleton is opt-in (multi-hour build, see scripts/build-pack/skeleton-build.sh)
+    // so during dev iteration the map still renders, just without basemap
+    // tiles (style.json's background color shows through).
+    // Pick the right tiles file: prefer an installed region pack
+    // (covers the user's active area in detail z0-14); fall back to the
+    // bundled global skeleton (z0-6 worldwide) when no pack is installed
+    // and the skeleton was actually built. Re-key on installedPacks so
+    // the tile server swaps the moment a pack download finishes.
+    //
+    // TODO multi-pack: when more than one pack is installed, this
+    // currently uses just the first one (alphabetical by id). A future
+    // change should pick the pack whose bbox contains the camera centre,
+    // or compose multiple mbtiles behind a single tile URL.
+    val tileServer = remember(offlinePaths, installedPacks) {
+        val packTiles = installedPacks
+            .map { it.tilesFile }
+            .firstOrNull { it.exists() }
+        val mbtiles = packTiles
+            ?: offlinePaths?.skeletonMbtiles?.takeIf { it.exists() }
+        mbtiles?.let { MbtilesServer(it) }
     }
     DisposableEffect(tileServer) {
         val server = tileServer
@@ -256,11 +359,11 @@ fun InteractiveMap(
             userLocation = if (it.isInNL()) it else DAM_SQUARE
             Log.d(
                 TAG,
-                "GPS fix ${it.latitude},${it.longitude} → using " +
+                "GPS fix ${it.latitude},${it.longitude} -> using " +
                     "${userLocation.latitude},${userLocation.longitude}" +
-                    if (!it.isInNL()) " (out of NL — clamped to Dam Square)" else "",
+                    if (!it.isInNL()) " (out of NL - clamped to Dam Square)" else "",
             )
-        } ?: Log.d(TAG, "No GPS — falling back to Dam Square")
+        } ?: Log.d(TAG, "No GPS - falling back to Dam Square")
     }
 
     val mapView = remember {
@@ -289,14 +392,28 @@ fun InteractiveMap(
     }
 
     LaunchedEffect(mapView, tileServer) {
-        // Wait for the local tile server before loading the style — otherwise
-        // MapLibre would synthesize tile URLs against a port that doesn't
-        // exist yet and cache the failure.
-        val server = tileServer ?: return@LaunchedEffect
-        Log.d(TAG, "getMapAsync requested (tile server=${server.tileUrlTemplate})")
+        // Always load a style so the user-location dot, route, and POI
+        // overlays render even when the skeleton mbtiles isn't built yet.
+        // When the tile server is up we use the full OpenMapTiles vector
+        // style; when not we fall back to a background-only style so the
+        // overlays still have a canvas.
+        Log.d(TAG, "getMapAsync requested (tile server=${tileServer?.tileUrlTemplate ?: "<none>"})")
         mapView.getMapAsync { map ->
             Log.d(TAG, "MapboxMap ready; setting style")
             mapboxMap = map
+            // Hide the MapLibre logo (their library branding, removable
+            // under MapLibre's BSD license). Keep the attribution button -
+            // OSM's ODbL data license requires attribution to OpenStreetMap
+            // contributors, and the (i) icon is the smallest, most standard
+            // way to provide it.
+            map.uiSettings.apply {
+                isLogoEnabled = false
+                // Hidden in the map UI to keep the canvas clean. NOTE:
+                // OSM's ODbL data license requires "(c) OpenStreetMap
+                // contributors" credit somewhere visible - add it to a
+                // future Settings/About screen so the app stays compliant.
+                isAttributionEnabled = false
+            }
             // Open at city-level zoom on whatever location we currently have
             // (Dam Square fallback). The LaunchedEffect below will animate to
             // the real GPS fix as soon as it resolves.
@@ -304,10 +421,20 @@ fun InteractiveMap(
                 .target(userLocation)
                 .zoom(14.0)
                 .build()
-            map.setStyle(Style.Builder().fromJson(buildOfflineStyle(server.tileUrlTemplate))) { style ->
+            val styleJson = tileServer
+                ?.let { buildOfflineStyle(context, it.tileUrlTemplate) }
+                ?: FALLBACK_BACKGROUND_STYLE
+            map.setStyle(Style.Builder().fromJson(styleJson)) { style ->
                 Log.d(TAG, "Style loaded; layers=${style.layers.size}, sources=${style.sources.size}")
                 try {
-                    addPoiLayer(context, style)
+                    addPoiLayer(
+                        context, style,
+                        clusteringEnabled = debugClusteringEnabled,
+                        clusterRadius = debugClusterRadius.toInt(),
+                        clusterMaxZoom = debugClusterMaxZoom.toInt(),
+                        poiScale = debugPoiScale,
+                        minVisibleZoom = debugPoiMinZoom,
+                    )
                     routeSource = addRouteLayer(style)
                     userLocationSource = addUserLocationLayer(style)
                     selectedDestSource = addSelectedDestinationLayer(style)
@@ -319,11 +446,49 @@ fun InteractiveMap(
             map.addOnMapClickListener { latLng ->
                 val pt = map.projection.toScreenLocation(latLng)
                 val touchRect = RectF(pt.x - 30, pt.y - 30, pt.x + 30, pt.y + 30)
+
+                // Cluster tap first: query the cluster circles + count
+                // badge (the count icon sits on top of the bubble, so a
+                // direct tap on the number must also count as a cluster
+                // hit). If hit, animate to the zoom level where this
+                // cluster breaks apart (MapLibre's getClusterExpansionZoom
+                // gives the precise value; fall back to current+2 if it
+                // isn't available).
+                val clusterHits = map.queryRenderedFeatures(
+                    touchRect, "clusters-layer", "clusters-count-layer",
+                )
+                if (clusterHits.isNotEmpty()) {
+                    val cluster = clusterHits[0]
+                    val coord = cluster.geometry() as? Point
+                    if (coord != null) {
+                        val source = map.style?.getSourceAs<GeoJsonSource>("pois-source")
+                        val expansionZoom = runCatching {
+                            source?.getClusterExpansionZoom(cluster)?.toDouble()
+                        }.getOrNull() ?: (map.cameraPosition.zoom + 2.0)
+                        map.animateCamera(
+                            CameraUpdateFactory.newLatLngZoom(
+                                LatLng(coord.latitude(), coord.longitude()),
+                                expansionZoom.coerceIn(2.0, 18.0),
+                            ),
+                            400,
+                        )
+                    }
+                    return@addOnMapClickListener true
+                }
+
+                // Otherwise individual POI tap.
                 val hits = map.queryRenderedFeatures(touchRect, "pois-layer")
                 if (hits.isNotEmpty()) {
                     val f = hits[0]
-                    val name = f.getStringProperty("name") ?: "POI"
+                    val rawName = f.getStringProperty("name")
                     val category = f.getStringProperty("category") ?: "place"
+                    // OSM POIs without a `name` tag (most ATMs, public toilets,
+                    // water fountains, AEDs) used to fall back to the literal
+                    // string "POI" which reads as a placeholder. Use the
+                    // category as the display label instead so the user sees
+                    // "ATM" / "Toilet" / "AED" rather than "POI".
+                    val name = if (!rawName.isNullOrBlank()) rawName
+                        else displayLabelForCategory(category)
                     val coord = f.geometry() as Point
                     selectedPoi = Poi(name, category, coord.latitude(), coord.longitude())
                     true
@@ -332,15 +497,44 @@ fun InteractiveMap(
         }
     }
 
+    // Debug panel: rebuild POI layers ONLY when the user moves a slider /
+    // flips the switch. Crucially, mapboxMap is NOT a key here - if it
+    // were, the effect would fire the moment the map became ready and
+    // race against the initial addPoiLayer call from setStyle's callback,
+    // tearing down a still-loading source. With debug values as the only
+    // keys, the effect runs once on first composition with defaults
+    // (returns early because mapboxMap is still null), then only re-fires
+    // when the user actually changes a knob.
+    LaunchedEffect(
+        debugClusteringEnabled,
+        debugClusterRadius,
+        debugClusterMaxZoom,
+        debugPoiScale,
+        debugPoiMinZoom,
+    ) {
+        val style = mapboxMap?.style ?: return@LaunchedEffect
+        if (!style.isFullyLoaded) return@LaunchedEffect
+        runCatching {
+            addPoiLayer(
+                context, style,
+                clusteringEnabled = debugClusteringEnabled,
+                clusterRadius = debugClusterRadius.toInt(),
+                clusterMaxZoom = debugClusterMaxZoom.toInt(),
+                poiScale = debugPoiScale,
+                minVisibleZoom = debugPoiMinZoom,
+            )
+        }.onFailure { Log.e(TAG, "Debug rebuild failed", it) }
+    }
+
     // Animate the map to the current GPS fix once both the map is ready and
     // a user location has resolved. The PDOK basemap only covers NL, so if
-    // the GPS reports somewhere else we stay on Dam Square — otherwise the
+    // the GPS reports somewhere else we stay on Dam Square - otherwise the
     // user sees a black void of un-tiled ocean.
     LaunchedEffect(mapboxMap, userLocation, initialDestination) {
         val map = mapboxMap ?: return@LaunchedEffect
         val target = if (userLocation.isInNL()) userLocation else DAM_SQUARE
         if (target !== userLocation) {
-            Log.d(TAG, "GPS ${userLocation.latitude},${userLocation.longitude} outside NL — using Dam Square")
+            Log.d(TAG, "GPS ${userLocation.latitude},${userLocation.longitude} outside NL - using Dam Square")
         }
         val update = if (initialDestination != null) {
             val dest = LatLng(initialDestination.lat, initialDestination.lon)
@@ -361,7 +555,7 @@ fun InteractiveMap(
     }
 
     // Mirror the selected destination into a dedicated source so the route
-    // endpoint always shows a marker — including LLM-supplied destinations
+    // endpoint always shows a marker - including LLM-supplied destinations
     // that aren't part of the bundled POI dataset.
     LaunchedEffect(selectedDestSource, selectedPoi) {
         val src = selectedDestSource ?: return@LaunchedEffect
@@ -381,41 +575,47 @@ fun InteractiveMap(
         }
     }
 
-    // Fetch route whenever (selectedPoi, mode, userLocation, offlinePaths)
-    // changes. Re-keying on offlinePaths means the first route after staging
-    // completes runs immediately, instead of stalling on stale null paths.
-    LaunchedEffect(selectedPoi, mode, userLocation, offlinePaths) {
+    // Fetch route whenever (selectedPoi, mode, userLocation, offlinePaths,
+    // installed pack set) changes. Re-keying on offlinePaths means the first
+    // route after staging completes runs immediately; re-keying on the pack
+    // list means a fresh install retriggers routing automatically.
+    LaunchedEffect(selectedPoi, mode, userLocation, offlinePaths, installedPacks, catalog) {
         val poi = selectedPoi ?: run {
             routeResult = null
+            routeOutcome = null
             routeSource?.setGeoJson(FeatureCollection.fromFeatures(emptyArray()))
             return@LaunchedEffect
         }
         val paths = offlinePaths ?: run {
-            // Staging not done yet — UI shows "Calculating route…" via
+            // Staging not done yet - UI shows "Calculating route..." via
             // [routeLoading] so the user knows we'll route once data lands.
             routeLoading = true
             return@LaunchedEffect
         }
         routeLoading = true
-        val result = OfflineRouter.route(
+        val outcome = OfflineRouter.route(
             from = userLocation,
             to = LatLng(poi.lat, poi.lon),
             profileName = mode.brouterProfile,
-            segmentsDir = paths.segmentsDir,
             profilesDir = paths.profilesDir,
+            installedPacks = installedPacks,
+            catalog = catalog.packs,
+            activeRoot = activeRoot,
         )
         routeLoading = false
-        if (result != null && result.polyline.size > 1) {
+        routeOutcome = outcome
+        if (outcome is RouteOutcome.Success && outcome.result.polyline.size > 1) {
             routeResult = RouteResult(
-                polyline = result.polyline,
-                distanceM = result.distanceM,
-                durationS = result.durationS,
+                polyline = outcome.result.polyline,
+                distanceM = outcome.result.distanceM,
+                durationS = outcome.result.durationS,
             )
-            val pts = result.polyline.map { Point.fromLngLat(it.longitude, it.latitude) }
+            val pts = outcome.result.polyline.map { Point.fromLngLat(it.longitude, it.latitude) }
             routeSource?.setGeoJson(LineString.fromLngLats(pts))
         } else {
             routeResult = null
-            Log.e(TAG, "Routing failed for $poi via ${mode.brouterProfile}")
+            routeSource?.setGeoJson(FeatureCollection.fromFeatures(emptyArray()))
+            Log.w(TAG, "Routing did not produce a polyline: $outcome")
         }
     }
 
@@ -439,9 +639,18 @@ fun InteractiveMap(
             RouteInfoCard(
                 poi = selectedPoi,
                 route = routeResult,
+                outcome = routeOutcome,
                 mode = mode,
                 loading = routeLoading,
                 onDismiss = { selectedPoi = null },
+                onOpenRegions = onOpenRegions,
+                onStart = {
+                    routeOutcome?.successOrNull()?.let { result ->
+                        val poi = selectedPoi
+                        val dest = poi?.let { MapDestination(it.name, it.category, it.lat, it.lon) }
+                        onStartNavigation(result, mode.navProfile, dest)
+                    }
+                },
                 modifier = Modifier
                     .padding(16.dp)
                     .padding(bottom = 24.dp),
@@ -449,7 +658,7 @@ fun InteractiveMap(
         }
 
         // Small non-blocking progress pill, only visible while the bootstrap
-        // is mid-copy (or has errored out). The map stays fully interactive —
+        // is mid-copy (or has errored out). The map stays fully interactive -
         // mode selector, GPS dot, POI taps all work; tiles just render once
         // the local server comes up.
         StagingPill(
@@ -459,6 +668,225 @@ fun InteractiveMap(
                 .align(Alignment.TopCenter)
                 .padding(top = 64.dp),
         )
+
+        // Temporary debug panel: bottom-left, collapsed by default. Tap
+        // the chip to expand sliders for cluster radius / max zoom /
+        // POI scale + a clustering on-off toggle. Hidden behind the
+        // [showDebugPanel] flag - flip it on at the call site to expose
+        // the controls during tuning. Defaults above keep the map
+        // rendering identically when hidden.
+        if (showDebugPanel) {
+            DebugPanel(
+                expanded = debugExpanded,
+                onToggle = { debugExpanded = !debugExpanded },
+                clusteringEnabled = debugClusteringEnabled,
+                onClusteringEnabledChange = { debugClusteringEnabled = it },
+                clusterRadius = debugClusterRadius,
+                onClusterRadiusChange = { debugClusterRadius = it },
+                clusterMaxZoom = debugClusterMaxZoom,
+                onClusterMaxZoomChange = { debugClusterMaxZoom = it },
+                poiScale = debugPoiScale,
+                onPoiScaleChange = { debugPoiScale = it },
+                poiMinZoom = debugPoiMinZoom,
+                onPoiMinZoomChange = { debugPoiMinZoom = it },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 12.dp, bottom = 12.dp),
+            )
+        }
+
+        // First-launch nudge: if no map packs are installed, surface a
+        // prominent banner pointing the user at the picker. The cloud icon
+        // in the top bar is easy to miss for first-time users; this banner
+        // makes the "you need to download a region first" step explicit.
+        // Auto-hides as soon as any pack is installed.
+        AnimatedVisibility(
+            visible = installedPacks.isEmpty() &&
+                bootstrapStatus !is OfflineBootstrap.Status.Staging,
+            enter = slideInVertically { -it } + fadeIn(),
+            exit = slideOutVertically { -it } + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 110.dp, start = 16.dp, end = 16.dp),
+        ) {
+            NoPacksBanner(onOpenRegions = onOpenRegions)
+        }
+    }
+}
+
+// Floating debug panel. Collapsed = a tiny "DEBUG" chip. Tap to expand
+// into a card with the live POI / cluster knobs. Temporary - delete the
+// composable + its callers once we've nailed the right defaults.
+@Composable
+private fun DebugPanel(
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    clusteringEnabled: Boolean,
+    onClusteringEnabledChange: (Boolean) -> Unit,
+    clusterRadius: Float,
+    onClusterRadiusChange: (Float) -> Unit,
+    clusterMaxZoom: Float,
+    onClusterMaxZoomChange: (Float) -> Unit,
+    poiScale: Float,
+    onPoiScaleChange: (Float) -> Unit,
+    poiMinZoom: Float,
+    onPoiMinZoomChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val bg = Color(0xCC111111)
+    val fg = Color.White
+    val dim = Color(0xFFB0B0B0)
+    if (!expanded) {
+        Box(
+            modifier = modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(bg)
+                .clickable(onClick = onToggle)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            Text("DEBUG", color = fg, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+        return
+    }
+    Column(
+        modifier = modifier
+            .width(260.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(bg)
+            .padding(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("DEBUG", color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = "hide",
+                color = dim,
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .clickable(onClick = onToggle)
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+        }
+        Spacer(Modifier.size(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Clustering", color = fg, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Switch(
+                checked = clusteringEnabled,
+                onCheckedChange = onClusteringEnabledChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = Color(0xFF1E88E5),
+                    uncheckedThumbColor = Color.White,
+                    uncheckedTrackColor = Color(0xFF555555),
+                ),
+            )
+        }
+        DebugSlider(
+            label = "cluster radius",
+            initial = clusterRadius,
+            valueRange = 1f..300f,
+            formatDisplay = { "${it.toInt()} px" },
+            onCommit = onClusterRadiusChange,
+            fg = fg, dim = dim,
+        )
+        DebugSlider(
+            label = "cluster max zoom",
+            initial = clusterMaxZoom,
+            valueRange = 0f..22f,
+            formatDisplay = { "z${it.toInt()}" },
+            onCommit = onClusterMaxZoomChange,
+            fg = fg, dim = dim,
+        )
+        DebugSlider(
+            label = "POI scale",
+            initial = poiScale,
+            valueRange = 0.3f..3f,
+            formatDisplay = { "%.1fx".format(it) },
+            onCommit = onPoiScaleChange,
+            fg = fg, dim = dim,
+        )
+        DebugSlider(
+            label = "POI min zoom",
+            initial = poiMinZoom,
+            valueRange = 0f..18f,
+            formatDisplay = { "z${it.toInt()}" },
+            onCommit = onPoiMinZoomChange,
+            fg = fg, dim = dim,
+        )
+    }
+}
+
+/**
+ * Slider that only commits to the parent on release. The local state
+ * tracks the dragged thumb position (so the display label updates
+ * smoothly), but [onCommit] - which triggers an addPoiLayer rebuild -
+ * fires once when the user lifts their finger. Without this, dragging
+ * would tear down and rebuild the GeoJsonSource dozens of times per
+ * second and crash MapLibre.
+ */
+@Composable
+private fun DebugSlider(
+    label: String,
+    initial: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    formatDisplay: (Float) -> String,
+    onCommit: (Float) -> Unit,
+    fg: Color,
+    dim: Color,
+) {
+    var local by remember(initial) { mutableStateOf(initial) }
+    Column(modifier = Modifier.padding(top = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, color = fg, fontSize = 11.sp, modifier = Modifier.weight(1f))
+            Text(formatDisplay(local), color = dim, fontSize = 11.sp)
+        }
+        Slider(
+            value = local,
+            onValueChange = { local = it },
+            onValueChangeFinished = { onCommit(local) },
+            valueRange = valueRange,
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color(0xFF1E88E5),
+                inactiveTrackColor = Color(0xFF555555),
+            ),
+        )
+    }
+}
+
+@Composable
+private fun NoPacksBanner(onOpenRegions: () -> Unit) {
+    val colors = EmergencyTheme.colors
+    val typography = EmergencyTheme.typography
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(EmergencyShapes.hero)
+            .background(colors.text)
+            .clickable(onClick = onOpenRegions)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.CloudDownload,
+            contentDescription = null,
+            tint = colors.bg,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Pick a region to use offline",
+                style = typography.listItem.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+                color = colors.bg,
+            )
+            Text(
+                text = "Tap to download maps + routing for your area",
+                style = typography.helper.copy(fontSize = 12.sp),
+                color = colors.bg.copy(alpha = 0.75f),
+            )
+        }
     }
 }
 
@@ -505,7 +933,7 @@ private fun StagingPill(
                         if (it.total > 0) (it.done * 100 / it.total) else 0
                     } ?: 0
                     Text(
-                        "Preparing offline maps… $pct%",
+                        "Preparing offline maps... $pct%",
                         color = Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
@@ -571,16 +999,21 @@ private fun ModeSelector(
 private fun RouteInfoCard(
     poi: Poi?,
     route: RouteResult?,
+    outcome: RouteOutcome?,
     mode: Mode,
     loading: Boolean,
     onDismiss: () -> Unit,
+    onOpenRegions: () -> Unit,
+    onStart: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     poi ?: return
     val colors = EmergencyTheme.colors
     val typography = EmergencyTheme.typography
+    val showGetMaps = outcome is RouteOutcome.OutsideDownloadedRegion
+    val showStart = route != null && outcome is RouteOutcome.Success
 
-    Box(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(EmergencyShapes.hero)
@@ -625,15 +1058,22 @@ private fun RouteInfoCard(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Calculating route…",
+                            text = "Calculating route...",
                             style = typography.helper,
                             color = colors.textDim,
                         )
                     }
                     route != null -> Text(
-                        text = "${formatDistance(route.distanceM)}  ·  ${formatDuration(route.durationS)} ${mode.label.lowercase()}",
+                        text = "${formatDistance(route.distanceM)}   -   ${formatDuration(route.durationS)} ${mode.label.lowercase()}",
                         style = typography.helper,
                         color = colors.textDim,
+                    )
+                    outcome != null -> Text(
+                        text = outcome.userMessage(),
+                        style = typography.helper,
+                        color = if (outcome is RouteOutcome.OutsideDownloadedRegion)
+                            colors.textDim else colors.danger,
+                        maxLines = 3,
                     )
                     else -> Text(
                         text = "Routing failed",
@@ -650,6 +1090,42 @@ private fun RouteInfoCard(
                 )
             }
         }
+        if (showGetMaps) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
+                    .clip(EmergencyShapes.full)
+                    .background(colors.text)
+                    .clickable(onClick = onOpenRegions)
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "Open map regions",
+                    style = typography.listItem.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
+                    color = colors.bg,
+                )
+            }
+        }
+        if (showStart) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
+                    .clip(EmergencyShapes.full)
+                    .background(colors.text)
+                    .clickable(onClick = onStart)
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "Start navigation",
+                    style = typography.listItem.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
+                    color = colors.bg,
+                )
+            }
+        }
     }
 }
 
@@ -661,36 +1137,70 @@ private fun formatDuration(seconds: Double): String {
     return if (mins < 60) "$mins min" else "${mins / 60} h ${mins % 60} min"
 }
 
-// ─── Map layers ──────────────────────────────────────────────────────────────
+// --- Map layers --------------------------------------------------------------
 
 // Adds the POI source + layers to the style. POIs are loaded from
 // app/src/main/assets/pois-nl.geojson and aggregated client-side via MapLibre
-// clustering — without that, rendering dense pins at low zoom would stutter.
-private fun addPoiLayer(context: Context, style: Style) {
+// clustering - without that, rendering dense pins at low zoom would stutter.
+private fun addPoiLayer(
+    context: Context,
+    style: Style,
+    clusteringEnabled: Boolean = true,
+    clusterRadius: Int = 15,
+    clusterMaxZoom: Int = 18,
+    poiScale: Float = 1f,
+    minVisibleZoom: Float = 5f,
+) {
+    Log.d(
+        TAG,
+        "addPoiLayer: clusteringEnabled=$clusteringEnabled clusterRadius=$clusterRadius " +
+            "clusterMaxZoom=$clusterMaxZoom poiScale=$poiScale",
+    )
+
+    // Idempotent: remove anything we previously attached so the debug
+    // panel can rebuild with new options live. Layers must come down
+    // before the source, otherwise removeSource throws because the
+    // source is still referenced. clusters-count-layer is in this list
+    // for backwards compat - earlier builds attached a SymbolLayer with
+    // a textField for the cluster count. The bundled style ships with
+    // no glyphs URL ("Glyphs are intentionally omitted..."), so that
+    // text layer threw on add and silently skipped every subsequent
+    // POI layer via the surrounding try/catch. We no longer add it -
+    // cluster magnitude is encoded in the bubble's circleRadius step
+    // expression instead.
+    listOf("clusters-layer", "clusters-count-layer", "pois-layer", "pois-icons-layer").forEach { id ->
+        if (style.getLayer(id) != null) style.removeLayer(id)
+    }
+    if (style.getSource("pois-source") != null) style.removeSource("pois-source")
+
     POI_CATEGORIES.forEach { name ->
         val resId = context.resources.getIdentifier("ic_poi_$name", "drawable", context.packageName)
         if (resId != 0) {
             drawableToBitmap(context, resId)?.let { bmp ->
-                style.addImage("$name-icon", bmp)
+                // sdf=true: MapLibre treats the alpha channel as a signed
+                // distance field, so the silhouette renders crisply at any
+                // size (no anti-aliasing artifacts that made the white
+                // outline look black at small zoom). The actual fill colour
+                // comes from the layer's iconColor, so the bundled PNG can
+                // be any colour - only the alpha shape matters.
+                style.addImage("$name-icon", bmp, true)
             }
         }
     }
 
     val options = GeoJsonOptions()
-        .withCluster(true)
-        .withClusterMaxZoom(13)
-        .withClusterRadius(60)
+        .withCluster(clusteringEnabled)
+        .withClusterMaxZoom(clusterMaxZoom)
+        .withClusterRadius(clusterRadius)
     val source = GeoJsonSource("pois-source", options)
     style.addSource(source)
 
-    // The bundled GeoJSON is ~32 MB; reading it as a Kotlin String would
-    // allocate ~128 MB on the Java heap (UTF-16 + StringBuilder doubling) and
-    // OOM mid-launch. Instead we stream it to internal storage with a bounded
-    // buffer and hand MapLibre a file:// URI so the parse happens natively.
-    //
-    // We copy once per install (existence check). When the bundled asset is
-    // updated, the next reinstall replaces filesDir so the copy refreshes
-    // automatically; for in-place dev iteration, clear app data.
+    // The bundled GeoJSON is ~32 MB. Always run the staging path on a
+    // worker thread (post setUri back to main when done) so we don't
+    // stall the UI on the first launch when the asset still has to be
+    // copied out, AND so the URI swap is consistently scheduled the
+    // same way for every call - this matches what was working before
+    // the debug-panel refactor.
     Thread {
         try {
             val outFile = java.io.File(context.filesDir, "pois-nl.geojson")
@@ -702,7 +1212,7 @@ private fun addPoiLayer(context: Context, style: Style) {
                 Log.d(
                     TAG,
                     "Copying pois-nl.geojson from assets (cached=$cachedVersion, " +
-                        "current=$POI_BUNDLE_VERSION)…",
+                        "current=$POI_BUNDLE_VERSION)...",
                 )
                 context.assets.open("pois-nl.geojson").use { input ->
                     outFile.outputStream().use { output -> input.copyTo(output) }
@@ -712,8 +1222,6 @@ private fun addPoiLayer(context: Context, style: Style) {
             } else {
                 Log.d(TAG, "Reusing existing pois-nl.geojson (${outFile.length() / 1024} KB)")
             }
-            // MapLibre expects a triple-slash file URI; File.toURI() yields
-            // file:/path on some JVMs which the native loader rejects.
             val uri = "file://${outFile.absolutePath}"
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 Log.d(TAG, "Setting POI source URI: $uri")
@@ -746,54 +1254,195 @@ private fun addPoiLayer(context: Context, style: Style) {
     val unclustered = Expression.not(Expression.has("point_count"))
     val clustered = Expression.has("point_count")
 
-    // Cluster bubble: blue circle that grows with the count.
+    // Cluster bubble: blue circle whose size + tint encode magnitude. We
+    // can't render the count number as text because the bundled style
+    // omits glyphs. Until glyphs ship, magnitude reads from radius (step
+    // expression on point_count) and a slightly darker fill at higher
+    // counts so dense urban clusters pop against sparse rural ones.
     val clusterCircle = CircleLayer("clusters-layer", "pois-source").withProperties(
-        PropertyFactory.circleColor("#1E88E5"),
+        PropertyFactory.circleColor(
+            Expression.step(
+                Expression.toNumber(Expression.get("point_count")),
+                Expression.literal("#42A5F5"),  // < 20: light blue
+                Expression.stop(20,   "#1E88E5"),  // mid blue
+                Expression.stop(100,  "#1565C0"),  // deeper
+                Expression.stop(500,  "#0D47A1"),  // dark
+                Expression.stop(2000, "#082C5C"),  // near-navy
+            )
+        ),
         PropertyFactory.circleStrokeColor("#FFFFFF"),
-        PropertyFactory.circleStrokeWidth(2f),
+        PropertyFactory.circleStrokeWidth(3f),
+        PropertyFactory.circleOpacity(0.95f),
         PropertyFactory.circleRadius(
             Expression.step(
                 Expression.toNumber(Expression.get("point_count")),
-                Expression.literal(16f),
-                Expression.stop(50, 22),
-                Expression.stop(200, 28),
-                Expression.stop(1000, 34),
+                Expression.literal(20f),
+                Expression.stop(20, 28),
+                Expression.stop(100, 36),
+                Expression.stop(500, 44),
+                Expression.stop(2000, 52),
             )
         ),
     )
     clusterCircle.setFilter(clustered)
-    style.addLayer(clusterCircle)
-
-    val clusterCount = SymbolLayer("clusters-count-layer", "pois-source").withProperties(
-        PropertyFactory.textField("{point_count_abbreviated}"),
-        PropertyFactory.textSize(12f),
-        PropertyFactory.textColor("#FFFFFF"),
-        PropertyFactory.textAllowOverlap(true),
-        PropertyFactory.textIgnorePlacement(true),
-    )
-    clusterCount.setFilter(clustered)
-    style.addLayer(clusterCount)
+    // minVisibleZoom comes from the debug slider. Below it the layer is
+    // skipped entirely so MapLibre doesn't pay the tile-feature query
+    // cost across the whole pack at world/continent zoom.
+    clusterCircle.minZoom = minVisibleZoom
+    runCatching { style.addLayer(clusterCircle) }
+        .onFailure { Log.e(TAG, "addLayer clusters-layer failed", it) }
 
     // Individual POI: colored circle, only when not part of a cluster.
+    // Radius grows with zoom. We start drawing from z8 (regional view)
+    // so the colored category dots are visible from very far out;
+    // dense areas still get rolled into number badges by the tight
+    // cluster radius above.
     val poiCircle = CircleLayer("pois-layer", "pois-source").withProperties(
-        PropertyFactory.circleRadius(11f),
-        PropertyFactory.circleStrokeWidth(2.5f),
+        PropertyFactory.circleRadius(
+            Expression.interpolate(
+                Expression.linear(), Expression.zoom(),
+                Expression.stop(6, 4f * poiScale),
+                Expression.stop(9, 6f * poiScale),
+                Expression.stop(11, 8f * poiScale),
+                Expression.stop(13, 11f * poiScale),
+                Expression.stop(15, 14f * poiScale),
+                Expression.stop(17, 16f * poiScale),
+                Expression.stop(19, 18f * poiScale),
+            )
+        ),
+        PropertyFactory.circleStrokeWidth(
+            Expression.interpolate(
+                Expression.linear(), Expression.zoom(),
+                Expression.stop(6, 1f),
+                Expression.stop(10, 1.5f),
+                Expression.stop(14, 2.5f),
+            )
+        ),
         PropertyFactory.circleStrokeColor("#FFFFFF"),
         PropertyFactory.circleColor(categoryColorExpr),
     )
     poiCircle.setFilter(unclustered)
-    style.addLayer(poiCircle)
+    poiCircle.minZoom = minVisibleZoom
+    runCatching { style.addLayer(poiCircle) }
+        .onFailure { Log.e(TAG, "addLayer pois-layer failed", it) }
 
     val poiIcon = SymbolLayer("pois-icons-layer", "pois-source").withProperties(
         PropertyFactory.iconImage(
             Expression.concat(Expression.get("category"), Expression.literal("-icon"))
         ),
-        PropertyFactory.iconSize(0.20f),
+        // SDF icons stay crisp at any size, so the size ramp can start
+        // earlier (z12) without the old downscaling artefacts. iconColor
+        // tints the silhouette to white on top of the colored category
+        // circle - same look as before but no black-edge halo at low zoom.
+        PropertyFactory.iconColor("#FFFFFF"),
+        PropertyFactory.iconSize(
+            Expression.interpolate(
+                Expression.linear(), Expression.zoom(),
+                Expression.stop(12, 0.16f * poiScale),
+                Expression.stop(14, 0.22f * poiScale),
+                Expression.stop(16, 0.28f * poiScale),
+                Expression.stop(18, 0.34f * poiScale),
+            )
+        ),
         PropertyFactory.iconAllowOverlap(true),
         PropertyFactory.iconIgnorePlacement(true),
     )
     poiIcon.setFilter(unclustered)
-    style.addLayer(poiIcon)
+    // Icons need the dot to be big enough to host them - keep z12 floor
+    // even if the slider is lower, so the icon never floats off a tiny
+    // 4 px circle. But never *above* what the user picked.
+    poiIcon.minZoom = kotlin.math.max(minVisibleZoom, 12f)
+    runCatching { style.addLayer(poiIcon) }
+        .onFailure { Log.e(TAG, "addLayer pois-icons-layer failed (likely glyphs/icons missing)", it) }
+
+    // Cluster count badges. We can't use SymbolLayer.textField (no glyphs
+    // bundled in style.json), so we pre-render Android Canvas bitmaps for
+    // each count value 2-99 + bucketed labels for 100/500/1k/10k+, then
+    // pick the right image per cluster via a step expression on
+    // point_count. Effectively the same UX as a text label without
+    // requiring a glyphs PBF.
+    addClusterCountBadges(context, style)
+    val countLayer = SymbolLayer("clusters-count-layer", "pois-source").withProperties(
+        PropertyFactory.iconImage(clusterCountImageExpr()),
+        // The count badges are added as SDF (see addClusterCountBadges).
+        // iconColor tints the silhouette white so the number reads
+        // crisply at every zoom - without SDF the anti-aliased white
+        // edges blend with the blue bubble at low zooms and the
+        // numeral can look dark grey/black.
+        PropertyFactory.iconColor("#FFFFFF"),
+        PropertyFactory.iconAllowOverlap(true),
+        PropertyFactory.iconIgnorePlacement(true),
+    )
+    countLayer.setFilter(clustered)
+    countLayer.minZoom = minVisibleZoom
+    runCatching { style.addLayer(countLayer) }
+        .onFailure { Log.e(TAG, "addLayer clusters-count-layer failed", it) }
+}
+
+/**
+ * Pre-renders cluster-count number badges as small white-text bitmaps and
+ * registers them with the style. Uses Android's font system (Paint +
+ * Canvas), so it works even when the style.json ships without a glyphs
+ * URL. Idempotent: re-registering the same image id replaces it.
+ *
+ * Buckets: 2-99 are exact (98 images), then 100+/500+/1k+/10k+. Memory
+ * footprint is ~24x24px x 4 bytes x 102 = ~235 KB - trivial.
+ */
+private fun addClusterCountBadges(context: Context, style: Style) {
+    val density = context.resources.displayMetrics.density
+    // sdf=true lets MapLibre render the alpha-channel silhouette at any
+    // size without scaling artefacts and tint it via iconColor on the
+    // layer. Without SDF, downscaling at low zoom blends white text
+    // edges with the bubble fill - the user sees the number as black.
+    for (n in 2..99) {
+        style.addImage("cluster-count-$n", makeCountBadge(n.toString(), density), true)
+    }
+    style.addImage("cluster-count-100",   makeCountBadge("100+", density), true)
+    style.addImage("cluster-count-500",   makeCountBadge("500+", density), true)
+    style.addImage("cluster-count-1000",  makeCountBadge("1k+", density), true)
+    style.addImage("cluster-count-10000", makeCountBadge("10k+", density), true)
+}
+
+private fun clusterCountImageExpr(): Expression {
+    // Step expression: pick the largest registered bucket whose key is
+    // <= point_count. MapLibre's step picks the value of the last stop
+    // whose input <= the eval value, with the literal as the < first stop.
+    val stops = mutableListOf<Expression.Stop>()
+    for (n in 3..99) stops.add(Expression.stop(n, "cluster-count-$n"))
+    stops.add(Expression.stop(100, "cluster-count-100"))
+    stops.add(Expression.stop(500, "cluster-count-500"))
+    stops.add(Expression.stop(1000, "cluster-count-1000"))
+    stops.add(Expression.stop(10000, "cluster-count-10000"))
+    return Expression.step(
+        Expression.toNumber(Expression.get("point_count")),
+        Expression.literal("cluster-count-2"),
+        *stops.toTypedArray(),
+    )
+}
+
+/**
+ * Renders [text] centred on a 24dp transparent square as white sans-serif.
+ * Font size shrinks with text length so 2- and 3-character labels still
+ * fit. Used as the cluster-count badge image.
+ */
+private fun makeCountBadge(text: String, density: Float): Bitmap {
+    val sizePx = (24 * density).toInt().coerceAtLeast(48)
+    val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bmp)
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE
+        textAlign = android.graphics.Paint.Align.CENTER
+        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        textSize = when (text.length) {
+            1 -> sizePx * 0.55f
+            2 -> sizePx * 0.46f
+            3 -> sizePx * 0.36f
+            else -> sizePx * 0.30f
+        }
+    }
+    val baseline = sizePx / 2f - (paint.descent() + paint.ascent()) / 2f
+    canvas.drawText(text, sizePx / 2f, baseline, paint)
+    return bmp
 }
 
 private fun addRouteLayer(style: Style): GeoJsonSource {
@@ -836,7 +1485,7 @@ private fun addUserLocationLayer(style: Style): GeoJsonSource {
 
 // Marker for the currently selected destination. Uses the same `category` icon
 // expression as the POI layer so the visual matches a tapped pin, but renders
-// from its own source — so destinations supplied via `initialDestination`
+// from its own source - so destinations supplied via `initialDestination`
 // (e.g. from the chat tool) are always visible, even when they aren't part of
 // the bundled POIs.
 private fun addSelectedDestinationLayer(style: Style): GeoJsonSource {
@@ -884,7 +1533,7 @@ private fun drawableToBitmap(context: Context, resId: Int): Bitmap? {
     return bmp
 }
 
-// ─── GPS ─────────────────────────────────────────────────────────────────────
+// --- GPS ---------------------------------------------------------------------
 
 @SuppressLint("MissingPermission")
 internal suspend fun getUserLocation(context: Context): LatLng? {
@@ -902,26 +1551,32 @@ internal suspend fun getUserLocation(context: Context): LatLng? {
     }
 }
 
-// ─── Offline basemap style ───────────────────────────────────────────────────
+// --- Offline basemap style ---------------------------------------------------
 
 // MapLibre 10.x doesn't ship an mbtiles:// scheme handler, so the offline
 // tile pack is served by [MbtilesServer] over loopback HTTP. The port is
-// OS-assigned at runtime, hence the URL has to be threaded into the style
-// JSON instead of being a constant.
-private fun buildOfflineStyle(tileUrlTemplate: String): String = """
+// OS-assigned at runtime, so we read the bundled OpenMapTiles vector style
+// from assets and patch the placeholder tile URL with the live server URL
+// before handing it to MapLibre.
+private const val STYLE_ASSET_PATH = "bundled/style.json"
+private const val TILE_URL_PLACEHOLDER = "{TILE_URL_TEMPLATE}"
+
+private fun buildOfflineStyle(context: Context, tileUrlTemplate: String): String {
+    val template = context.assets.open(STYLE_ASSET_PATH).bufferedReader().use { it.readText() }
+    return template.replace(TILE_URL_PLACEHOLDER, tileUrlTemplate)
+}
+
+// Background-only fallback used while the bundled skeleton mbtiles is
+// missing (e.g. during dev iteration before scripts/build-pack/skeleton-build.sh
+// has been run). MapLibre still needs *some* style to render the user-location
+// dot, route polyline and POI overlays; this gives those layers a canvas
+// without trying to load tiles from a non-existent server.
+private const val FALLBACK_BACKGROUND_STYLE = """
 {
   "version": 8,
-  "sources": {
-    "nl-offline": {
-      "type": "raster",
-      "tiles": ["$tileUrlTemplate"],
-      "tileSize": 256,
-      "minzoom": 5,
-      "maxzoom": 13,
-      "attribution": "© Kadaster"
-    }
-  },
+  "sources": {},
   "layers": [
-    {"id": "nl-offline-layer", "type": "raster", "source": "nl-offline"}
+    {"id": "background", "type": "background", "paint": {"background-color": "#f3f1ec"}}
   ]
-}"""
+}
+"""

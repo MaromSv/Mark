@@ -1,0 +1,3081 @@
+{
+  "_comment": "Source of truth for the build pipeline. Each entry maps a region id (slug) to its Geofabrik area path, bbox [W,S,E,N], display name, type, and ISO code (when applicable). build.sh resolves a region id from this file; the GitHub Actions workflow iterates the full list.",
+  "_notes": [
+    "Bboxes are approximate (\u00b10.5\u00b0). They drive the picker UX (Custom-tab size estimate, RegionResolver coverage) but never crop data \u2014 Planetiler/BRouter use the Geofabrik PBF as-is.",
+    "USA + Canada are state/province-split because the country-wide PBFs exceed GitHub Releases' 2 GB asset cap.",
+    "Russia uses Geofabrik's federal-district splits for the same reason.",
+    "Brazil uses Geofabrik's macroregion splits (norte/nordeste/centro-oeste/sudeste/sul).",
+    "China and India are listed as single-country packs with skipBuild=true: their PBFs (~2-7 GB each) need bbox-based osmium splitting before they fit. Add the splits when you need them \u2014 build.sh would need a parentArea+bbox flow plus a planetiler local-PBF mode."
+  ],
+  "regions": [
+    {
+      "id": "ad",
+      "name": "Andorra",
+      "type": "country",
+      "iso": "AD",
+      "geofabrikArea": "europe/andorra",
+      "bbox": [
+        1.4,
+        42.42,
+        1.79,
+        42.66
+      ]
+    },
+    {
+      "id": "al",
+      "name": "Albania",
+      "type": "country",
+      "iso": "AL",
+      "geofabrikArea": "europe/albania",
+      "bbox": [
+        19.16,
+        39.62,
+        21.07,
+        42.66
+      ]
+    },
+    {
+      "id": "at",
+      "name": "Austria",
+      "type": "country",
+      "iso": "AT",
+      "geofabrikArea": "europe/austria",
+      "bbox": [
+        9.47,
+        46.37,
+        17.16,
+        49.02
+      ]
+    },
+    {
+      "id": "ba",
+      "name": "Bosnia & Herzegovina",
+      "type": "country",
+      "iso": "BA",
+      "geofabrikArea": "europe/bosnia-herzegovina",
+      "bbox": [
+        15.72,
+        42.55,
+        19.62,
+        45.28
+      ]
+    },
+    {
+      "id": "be",
+      "name": "Belgium",
+      "type": "country",
+      "iso": "BE",
+      "geofabrikArea": "europe/belgium",
+      "bbox": [
+        2.5,
+        49.5,
+        6.4,
+        51.5
+      ]
+    },
+    {
+      "id": "bg",
+      "name": "Bulgaria",
+      "type": "country",
+      "iso": "BG",
+      "geofabrikArea": "europe/bulgaria",
+      "bbox": [
+        22.36,
+        41.23,
+        28.61,
+        44.22
+      ]
+    },
+    {
+      "id": "by",
+      "name": "Belarus",
+      "type": "country",
+      "iso": "BY",
+      "geofabrikArea": "europe/belarus",
+      "bbox": [
+        23.18,
+        51.25,
+        32.78,
+        56.17
+      ]
+    },
+    {
+      "id": "ch",
+      "name": "Switzerland",
+      "type": "country",
+      "iso": "CH",
+      "geofabrikArea": "europe/switzerland",
+      "bbox": [
+        5.95,
+        45.8,
+        10.5,
+        47.81
+      ]
+    },
+    {
+      "id": "cy",
+      "name": "Cyprus",
+      "type": "country",
+      "iso": "CY",
+      "geofabrikArea": "europe/cyprus",
+      "bbox": [
+        32.27,
+        34.56,
+        34.6,
+        35.71
+      ]
+    },
+    {
+      "id": "cz",
+      "name": "Czechia",
+      "type": "country",
+      "iso": "CZ",
+      "geofabrikArea": "europe/czech-republic",
+      "bbox": [
+        12.09,
+        48.55,
+        18.86,
+        51.06
+      ]
+    },
+    {
+      "id": "de",
+      "name": "Germany",
+      "type": "country",
+      "iso": "DE",
+      "geofabrikArea": "europe/germany",
+      "bbox": [
+        5.86,
+        47.27,
+        15.05,
+        55.06
+      ]
+    },
+    {
+      "id": "dk",
+      "name": "Denmark",
+      "type": "country",
+      "iso": "DK",
+      "geofabrikArea": "europe/denmark",
+      "bbox": [
+        8.07,
+        54.56,
+        15.19,
+        57.75
+      ]
+    },
+    {
+      "id": "ee",
+      "name": "Estonia",
+      "type": "country",
+      "iso": "EE",
+      "geofabrikArea": "europe/estonia",
+      "bbox": [
+        21.83,
+        57.52,
+        28.21,
+        59.69
+      ]
+    },
+    {
+      "id": "es",
+      "name": "Spain",
+      "type": "country",
+      "iso": "ES",
+      "geofabrikArea": "europe/spain",
+      "bbox": [
+        -9.31,
+        35.95,
+        4.33,
+        43.79
+      ]
+    },
+    {
+      "id": "fi",
+      "name": "Finland",
+      "type": "country",
+      "iso": "FI",
+      "geofabrikArea": "europe/finland",
+      "bbox": [
+        20.55,
+        59.81,
+        31.59,
+        70.09
+      ]
+    },
+    {
+      "id": "fo",
+      "name": "Faroe Islands",
+      "type": "country",
+      "iso": "FO",
+      "geofabrikArea": "europe/faroe-islands",
+      "bbox": [
+        -7.69,
+        61.39,
+        -6.26,
+        62.4
+      ]
+    },
+    {
+      "id": "fr",
+      "name": "France",
+      "type": "country",
+      "iso": "FR",
+      "geofabrikArea": "europe/france",
+      "bbox": [
+        -5.14,
+        41.33,
+        9.56,
+        51.09
+      ]
+    },
+    {
+      "id": "gb",
+      "name": "United Kingdom",
+      "type": "country",
+      "iso": "GB",
+      "geofabrikArea": "europe/great-britain",
+      "bbox": [
+        -8.65,
+        49.86,
+        1.77,
+        60.86
+      ]
+    },
+    {
+      "id": "gr",
+      "name": "Greece",
+      "type": "country",
+      "iso": "GR",
+      "geofabrikArea": "europe/greece",
+      "bbox": [
+        19.36,
+        34.8,
+        28.25,
+        41.75
+      ]
+    },
+    {
+      "id": "hr",
+      "name": "Croatia",
+      "type": "country",
+      "iso": "HR",
+      "geofabrikArea": "europe/croatia",
+      "bbox": [
+        13.49,
+        42.39,
+        19.45,
+        46.55
+      ]
+    },
+    {
+      "id": "hu",
+      "name": "Hungary",
+      "type": "country",
+      "iso": "HU",
+      "geofabrikArea": "europe/hungary",
+      "bbox": [
+        16.11,
+        45.74,
+        22.9,
+        48.59
+      ]
+    },
+    {
+      "id": "ie",
+      "name": "Ireland",
+      "type": "country",
+      "iso": "IE",
+      "geofabrikArea": "europe/ireland-and-northern-ireland",
+      "bbox": [
+        -10.48,
+        51.39,
+        -5.99,
+        55.43
+      ]
+    },
+    {
+      "id": "is",
+      "name": "Iceland",
+      "type": "country",
+      "iso": "IS",
+      "geofabrikArea": "europe/iceland",
+      "bbox": [
+        -24.55,
+        63.3,
+        -13.5,
+        66.57
+      ]
+    },
+    {
+      "id": "it",
+      "name": "Italy",
+      "type": "country",
+      "iso": "IT",
+      "geofabrikArea": "europe/italy",
+      "bbox": [
+        6.62,
+        35.49,
+        18.52,
+        47.1
+      ]
+    },
+    {
+      "id": "li",
+      "name": "Liechtenstein",
+      "type": "country",
+      "iso": "LI",
+      "geofabrikArea": "europe/liechtenstein",
+      "bbox": [
+        9.47,
+        47.05,
+        9.64,
+        47.27
+      ]
+    },
+    {
+      "id": "lt",
+      "name": "Lithuania",
+      "type": "country",
+      "iso": "LT",
+      "geofabrikArea": "europe/lithuania",
+      "bbox": [
+        20.93,
+        53.89,
+        26.84,
+        56.45
+      ]
+    },
+    {
+      "id": "lu",
+      "name": "Luxembourg",
+      "type": "country",
+      "iso": "LU",
+      "geofabrikArea": "europe/luxembourg",
+      "bbox": [
+        5.74,
+        49.45,
+        6.53,
+        50.18
+      ]
+    },
+    {
+      "id": "lv",
+      "name": "Latvia",
+      "type": "country",
+      "iso": "LV",
+      "geofabrikArea": "europe/latvia",
+      "bbox": [
+        20.97,
+        55.67,
+        28.24,
+        58.08
+      ]
+    },
+    {
+      "id": "mc",
+      "name": "Monaco",
+      "type": "country",
+      "iso": "MC",
+      "geofabrikArea": "europe/monaco",
+      "bbox": [
+        7.39,
+        43.72,
+        7.45,
+        43.76
+      ]
+    },
+    {
+      "id": "md",
+      "name": "Moldova",
+      "type": "country",
+      "iso": "MD",
+      "geofabrikArea": "europe/moldova",
+      "bbox": [
+        26.62,
+        45.47,
+        30.13,
+        48.49
+      ]
+    },
+    {
+      "id": "me",
+      "name": "Montenegro",
+      "type": "country",
+      "iso": "ME",
+      "geofabrikArea": "europe/montenegro",
+      "bbox": [
+        18.43,
+        41.85,
+        20.36,
+        43.56
+      ]
+    },
+    {
+      "id": "mk",
+      "name": "North Macedonia",
+      "type": "country",
+      "iso": "MK",
+      "geofabrikArea": "europe/macedonia",
+      "bbox": [
+        20.45,
+        40.85,
+        23.04,
+        42.37
+      ]
+    },
+    {
+      "id": "mt",
+      "name": "Malta",
+      "type": "country",
+      "iso": "MT",
+      "geofabrikArea": "europe/malta",
+      "bbox": [
+        14.18,
+        35.79,
+        14.58,
+        36.1
+      ]
+    },
+    {
+      "id": "nl",
+      "name": "Netherlands",
+      "type": "country",
+      "iso": "NL",
+      "geofabrikArea": "europe/netherlands",
+      "bbox": [
+        3.0,
+        50.5,
+        7.5,
+        53.7
+      ]
+    },
+    {
+      "id": "no",
+      "name": "Norway",
+      "type": "country",
+      "iso": "NO",
+      "geofabrikArea": "europe/norway",
+      "bbox": [
+        4.39,
+        57.95,
+        31.3,
+        71.19
+      ]
+    },
+    {
+      "id": "pl",
+      "name": "Poland",
+      "type": "country",
+      "iso": "PL",
+      "geofabrikArea": "europe/poland",
+      "bbox": [
+        14.07,
+        49.0,
+        24.15,
+        54.84
+      ]
+    },
+    {
+      "id": "pt",
+      "name": "Portugal",
+      "type": "country",
+      "iso": "PT",
+      "geofabrikArea": "europe/portugal",
+      "bbox": [
+        -9.53,
+        36.95,
+        -6.19,
+        42.16
+      ]
+    },
+    {
+      "id": "ro",
+      "name": "Romania",
+      "type": "country",
+      "iso": "RO",
+      "geofabrikArea": "europe/romania",
+      "bbox": [
+        20.26,
+        43.62,
+        29.71,
+        48.27
+      ]
+    },
+    {
+      "id": "rs",
+      "name": "Serbia",
+      "type": "country",
+      "iso": "RS",
+      "geofabrikArea": "europe/serbia",
+      "bbox": [
+        18.83,
+        42.23,
+        23.0,
+        46.19
+      ]
+    },
+    {
+      "id": "se",
+      "name": "Sweden",
+      "type": "country",
+      "iso": "SE",
+      "geofabrikArea": "europe/sweden",
+      "bbox": [
+        11.1,
+        55.34,
+        24.16,
+        69.06
+      ]
+    },
+    {
+      "id": "si",
+      "name": "Slovenia",
+      "type": "country",
+      "iso": "SI",
+      "geofabrikArea": "europe/slovenia",
+      "bbox": [
+        13.37,
+        45.42,
+        16.61,
+        46.88
+      ]
+    },
+    {
+      "id": "sk",
+      "name": "Slovakia",
+      "type": "country",
+      "iso": "SK",
+      "geofabrikArea": "europe/slovakia",
+      "bbox": [
+        16.83,
+        47.73,
+        22.57,
+        49.61
+      ]
+    },
+    {
+      "id": "sm",
+      "name": "San Marino",
+      "type": "country",
+      "iso": "SM",
+      "geofabrikArea": "europe/italy",
+      "bbox": [
+        12.4,
+        43.89,
+        12.52,
+        43.99
+      ]
+    },
+    {
+      "id": "ua",
+      "name": "Ukraine",
+      "type": "country",
+      "iso": "UA",
+      "geofabrikArea": "europe/ukraine",
+      "bbox": [
+        22.13,
+        44.39,
+        40.22,
+        52.38
+      ]
+    },
+    {
+      "id": "va",
+      "name": "Vatican City",
+      "type": "country",
+      "iso": "VA",
+      "geofabrikArea": "europe/italy",
+      "bbox": [
+        12.44,
+        41.9,
+        12.46,
+        41.91
+      ]
+    },
+    {
+      "id": "ru-central",
+      "name": "Russia \u00b7 Central Federal District",
+      "type": "state",
+      "country": "RU",
+      "geofabrikArea": "russia/central-fed-district",
+      "bbox": [
+        30.18,
+        49.55,
+        47.65,
+        60.05
+      ]
+    },
+    {
+      "id": "ru-northwest",
+      "name": "Russia \u00b7 Northwestern Federal District",
+      "type": "state",
+      "country": "RU",
+      "geofabrikArea": "russia/northwestern-fed-district",
+      "bbox": [
+        27.3,
+        55.61,
+        66.37,
+        81.28
+      ]
+    },
+    {
+      "id": "ru-volga",
+      "name": "Russia \u00b7 Volga Federal District",
+      "type": "state",
+      "country": "RU",
+      "geofabrikArea": "russia/volga-fed-district",
+      "bbox": [
+        41.16,
+        50.28,
+        60.28,
+        61.08
+      ]
+    },
+    {
+      "id": "ru-south",
+      "name": "Russia \u00b7 Southern Federal District",
+      "type": "state",
+      "country": "RU",
+      "geofabrikArea": "russia/south-fed-district",
+      "bbox": [
+        36.59,
+        41.18,
+        49.65,
+        50.28
+      ]
+    },
+    {
+      "id": "ru-northcaucasus",
+      "name": "Russia \u00b7 North Caucasian Federal District",
+      "type": "state",
+      "country": "RU",
+      "geofabrikArea": "russia/north-caucasus-fed-district",
+      "bbox": [
+        38.18,
+        41.18,
+        48.71,
+        45.62
+      ]
+    },
+    {
+      "id": "ru-ural",
+      "name": "Russia \u00b7 Ural Federal District",
+      "type": "state",
+      "country": "RU",
+      "geofabrikArea": "russia/ural-fed-district",
+      "bbox": [
+        57.15,
+        51.21,
+        86.32,
+        73.51
+      ]
+    },
+    {
+      "id": "ru-siberian",
+      "name": "Russia \u00b7 Siberian Federal District",
+      "type": "state",
+      "country": "RU",
+      "geofabrikArea": "russia/siberian-fed-district",
+      "bbox": [
+        76.18,
+        49.27,
+        119.21,
+        77.74
+      ]
+    },
+    {
+      "id": "ru-far-eastern",
+      "name": "Russia \u00b7 Far Eastern Federal District",
+      "type": "state",
+      "country": "RU",
+      "geofabrikArea": "russia/far-eastern-fed-district",
+      "bbox": [
+        102.54,
+        41.18,
+        180.0,
+        81.3
+      ]
+    },
+    {
+      "id": "ru-crimean",
+      "name": "Russia \u00b7 Crimean Federal District",
+      "type": "state",
+      "country": "RU",
+      "geofabrikArea": "russia/crimean-fed-district",
+      "bbox": [
+        32.46,
+        44.39,
+        36.63,
+        46.22
+      ]
+    },
+    {
+      "id": "mx",
+      "name": "Mexico",
+      "type": "country",
+      "iso": "MX",
+      "geofabrikArea": "north-america/mexico",
+      "bbox": [
+        -118.4,
+        14.53,
+        -86.71,
+        32.72
+      ]
+    },
+    {
+      "id": "gl",
+      "name": "Greenland",
+      "type": "country",
+      "iso": "GL",
+      "geofabrikArea": "north-america/greenland",
+      "bbox": [
+        -73.3,
+        59.79,
+        -11.31,
+        83.63
+      ]
+    },
+    {
+      "id": "us-al",
+      "name": "Alabama",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/alabama",
+      "bbox": [
+        -88.47,
+        30.22,
+        -84.89,
+        35.01
+      ]
+    },
+    {
+      "id": "us-ak",
+      "name": "Alaska",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/alaska",
+      "bbox": [
+        -179.15,
+        51.21,
+        179.78,
+        71.44
+      ]
+    },
+    {
+      "id": "us-az",
+      "name": "Arizona",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/arizona",
+      "bbox": [
+        -114.82,
+        31.33,
+        -109.05,
+        37.0
+      ]
+    },
+    {
+      "id": "us-ar",
+      "name": "Arkansas",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/arkansas",
+      "bbox": [
+        -94.62,
+        33.0,
+        -89.64,
+        36.5
+      ]
+    },
+    {
+      "id": "us-ca",
+      "name": "California",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/california",
+      "bbox": [
+        -124.48,
+        32.53,
+        -114.13,
+        42.01
+      ]
+    },
+    {
+      "id": "us-co",
+      "name": "Colorado",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/colorado",
+      "bbox": [
+        -109.06,
+        36.99,
+        -102.04,
+        41.0
+      ]
+    },
+    {
+      "id": "us-ct",
+      "name": "Connecticut",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/connecticut",
+      "bbox": [
+        -73.73,
+        40.95,
+        -71.79,
+        42.05
+      ]
+    },
+    {
+      "id": "us-de",
+      "name": "Delaware",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/delaware",
+      "bbox": [
+        -75.79,
+        38.45,
+        -75.05,
+        39.84
+      ]
+    },
+    {
+      "id": "us-dc",
+      "name": "District of Columbia",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/district-of-columbia",
+      "bbox": [
+        -77.12,
+        38.79,
+        -76.91,
+        38.99
+      ]
+    },
+    {
+      "id": "us-fl",
+      "name": "Florida",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/florida",
+      "bbox": [
+        -87.63,
+        24.4,
+        -80.03,
+        31.0
+      ]
+    },
+    {
+      "id": "us-ga",
+      "name": "Georgia",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/georgia",
+      "bbox": [
+        -85.61,
+        30.36,
+        -80.84,
+        34.99
+      ]
+    },
+    {
+      "id": "us-hi",
+      "name": "Hawaii",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/hawaii",
+      "bbox": [
+        -160.55,
+        18.91,
+        -154.81,
+        22.24
+      ]
+    },
+    {
+      "id": "us-id",
+      "name": "Idaho",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/idaho",
+      "bbox": [
+        -117.24,
+        41.99,
+        -111.04,
+        49.0
+      ]
+    },
+    {
+      "id": "us-il",
+      "name": "Illinois",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/illinois",
+      "bbox": [
+        -91.51,
+        36.97,
+        -87.02,
+        42.51
+      ]
+    },
+    {
+      "id": "us-in",
+      "name": "Indiana",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/indiana",
+      "bbox": [
+        -88.1,
+        37.77,
+        -84.78,
+        41.76
+      ]
+    },
+    {
+      "id": "us-ia",
+      "name": "Iowa",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/iowa",
+      "bbox": [
+        -96.64,
+        40.38,
+        -90.14,
+        43.5
+      ]
+    },
+    {
+      "id": "us-ks",
+      "name": "Kansas",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/kansas",
+      "bbox": [
+        -102.05,
+        36.99,
+        -94.59,
+        40.0
+      ]
+    },
+    {
+      "id": "us-ky",
+      "name": "Kentucky",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/kentucky",
+      "bbox": [
+        -89.57,
+        36.5,
+        -81.96,
+        39.15
+      ]
+    },
+    {
+      "id": "us-la",
+      "name": "Louisiana",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/louisiana",
+      "bbox": [
+        -94.04,
+        28.93,
+        -88.82,
+        33.02
+      ]
+    },
+    {
+      "id": "us-me",
+      "name": "Maine",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/maine",
+      "bbox": [
+        -71.08,
+        43.06,
+        -66.95,
+        47.46
+      ]
+    },
+    {
+      "id": "us-md",
+      "name": "Maryland",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/maryland",
+      "bbox": [
+        -79.49,
+        37.91,
+        -75.05,
+        39.72
+      ]
+    },
+    {
+      "id": "us-ma",
+      "name": "Massachusetts",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/massachusetts",
+      "bbox": [
+        -73.51,
+        41.24,
+        -69.93,
+        42.89
+      ]
+    },
+    {
+      "id": "us-mi",
+      "name": "Michigan",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/michigan",
+      "bbox": [
+        -90.42,
+        41.7,
+        -82.41,
+        48.3
+      ]
+    },
+    {
+      "id": "us-mn",
+      "name": "Minnesota",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/minnesota",
+      "bbox": [
+        -97.24,
+        43.5,
+        -89.49,
+        49.39
+      ]
+    },
+    {
+      "id": "us-ms",
+      "name": "Mississippi",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/mississippi",
+      "bbox": [
+        -91.66,
+        30.17,
+        -88.1,
+        35.01
+      ]
+    },
+    {
+      "id": "us-mo",
+      "name": "Missouri",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/missouri",
+      "bbox": [
+        -95.77,
+        35.99,
+        -89.1,
+        40.62
+      ]
+    },
+    {
+      "id": "us-mt",
+      "name": "Montana",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/montana",
+      "bbox": [
+        -116.05,
+        44.36,
+        -104.04,
+        49.0
+      ]
+    },
+    {
+      "id": "us-ne",
+      "name": "Nebraska",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/nebraska",
+      "bbox": [
+        -104.05,
+        39.99,
+        -95.31,
+        43.0
+      ]
+    },
+    {
+      "id": "us-nv",
+      "name": "Nevada",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/nevada",
+      "bbox": [
+        -120.01,
+        35.0,
+        -114.04,
+        42.0
+      ]
+    },
+    {
+      "id": "us-nh",
+      "name": "New Hampshire",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/new-hampshire",
+      "bbox": [
+        -72.56,
+        42.7,
+        -70.61,
+        45.31
+      ]
+    },
+    {
+      "id": "us-nj",
+      "name": "New Jersey",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/new-jersey",
+      "bbox": [
+        -75.56,
+        38.93,
+        -73.89,
+        41.36
+      ]
+    },
+    {
+      "id": "us-nm",
+      "name": "New Mexico",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/new-mexico",
+      "bbox": [
+        -109.05,
+        31.33,
+        -103.0,
+        37.0
+      ]
+    },
+    {
+      "id": "us-ny",
+      "name": "New York",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/new-york",
+      "bbox": [
+        -79.76,
+        40.5,
+        -71.86,
+        45.02
+      ]
+    },
+    {
+      "id": "us-nc",
+      "name": "North Carolina",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/north-carolina",
+      "bbox": [
+        -84.32,
+        33.84,
+        -75.46,
+        36.59
+      ]
+    },
+    {
+      "id": "us-nd",
+      "name": "North Dakota",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/north-dakota",
+      "bbox": [
+        -104.05,
+        45.94,
+        -96.55,
+        49.0
+      ]
+    },
+    {
+      "id": "us-oh",
+      "name": "Ohio",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/ohio",
+      "bbox": [
+        -84.82,
+        38.4,
+        -80.52,
+        41.98
+      ]
+    },
+    {
+      "id": "us-ok",
+      "name": "Oklahoma",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/oklahoma",
+      "bbox": [
+        -103.0,
+        33.62,
+        -94.43,
+        37.0
+      ]
+    },
+    {
+      "id": "us-or",
+      "name": "Oregon",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/oregon",
+      "bbox": [
+        -124.57,
+        41.99,
+        -116.46,
+        46.29
+      ]
+    },
+    {
+      "id": "us-pa",
+      "name": "Pennsylvania",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/pennsylvania",
+      "bbox": [
+        -80.52,
+        39.72,
+        -74.69,
+        42.27
+      ]
+    },
+    {
+      "id": "us-ri",
+      "name": "Rhode Island",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/rhode-island",
+      "bbox": [
+        -71.91,
+        41.15,
+        -71.12,
+        42.02
+      ]
+    },
+    {
+      "id": "us-sc",
+      "name": "South Carolina",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/south-carolina",
+      "bbox": [
+        -83.36,
+        32.03,
+        -78.54,
+        35.21
+      ]
+    },
+    {
+      "id": "us-sd",
+      "name": "South Dakota",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/south-dakota",
+      "bbox": [
+        -104.06,
+        42.48,
+        -96.44,
+        45.95
+      ]
+    },
+    {
+      "id": "us-tn",
+      "name": "Tennessee",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/tennessee",
+      "bbox": [
+        -90.31,
+        34.98,
+        -81.65,
+        36.68
+      ]
+    },
+    {
+      "id": "us-tx",
+      "name": "Texas",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/texas",
+      "bbox": [
+        -106.65,
+        25.84,
+        -93.51,
+        36.5
+      ]
+    },
+    {
+      "id": "us-ut",
+      "name": "Utah",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/utah",
+      "bbox": [
+        -114.05,
+        36.99,
+        -109.04,
+        42.0
+      ]
+    },
+    {
+      "id": "us-vt",
+      "name": "Vermont",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/vermont",
+      "bbox": [
+        -73.44,
+        42.73,
+        -71.46,
+        45.02
+      ]
+    },
+    {
+      "id": "us-va",
+      "name": "Virginia",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/virginia",
+      "bbox": [
+        -83.68,
+        36.54,
+        -75.24,
+        39.47
+      ]
+    },
+    {
+      "id": "us-wa",
+      "name": "Washington",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/washington",
+      "bbox": [
+        -124.85,
+        45.54,
+        -116.92,
+        49.0
+      ]
+    },
+    {
+      "id": "us-wv",
+      "name": "West Virginia",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/west-virginia",
+      "bbox": [
+        -82.65,
+        37.2,
+        -77.72,
+        40.64
+      ]
+    },
+    {
+      "id": "us-wi",
+      "name": "Wisconsin",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/wisconsin",
+      "bbox": [
+        -92.89,
+        42.49,
+        -86.25,
+        47.3
+      ]
+    },
+    {
+      "id": "us-wy",
+      "name": "Wyoming",
+      "type": "state",
+      "country": "US",
+      "geofabrikArea": "north-america/us/wyoming",
+      "bbox": [
+        -111.06,
+        40.99,
+        -104.05,
+        45.01
+      ]
+    },
+    {
+      "id": "ca-ab",
+      "name": "Alberta",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/alberta",
+      "bbox": [
+        -120.0,
+        49.0,
+        -110.0,
+        60.0
+      ]
+    },
+    {
+      "id": "ca-bc",
+      "name": "British Columbia",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/british-columbia",
+      "bbox": [
+        -139.06,
+        48.3,
+        -114.05,
+        60.0
+      ]
+    },
+    {
+      "id": "ca-mb",
+      "name": "Manitoba",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/manitoba",
+      "bbox": [
+        -102.0,
+        49.0,
+        -88.95,
+        60.0
+      ]
+    },
+    {
+      "id": "ca-nb",
+      "name": "New Brunswick",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/new-brunswick",
+      "bbox": [
+        -69.05,
+        44.5,
+        -63.78,
+        48.07
+      ]
+    },
+    {
+      "id": "ca-nl",
+      "name": "Newfoundland & Labrador",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/newfoundland-and-labrador",
+      "bbox": [
+        -67.81,
+        46.59,
+        -52.62,
+        60.39
+      ]
+    },
+    {
+      "id": "ca-ns",
+      "name": "Nova Scotia",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/nova-scotia",
+      "bbox": [
+        -66.36,
+        43.36,
+        -59.66,
+        47.07
+      ]
+    },
+    {
+      "id": "ca-nt",
+      "name": "Northwest Territories",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/northwest-territories",
+      "bbox": [
+        -136.45,
+        60.0,
+        -102.0,
+        78.76
+      ]
+    },
+    {
+      "id": "ca-nu",
+      "name": "Nunavut",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/nunavut",
+      "bbox": [
+        -120.45,
+        51.6,
+        -61.05,
+        83.11
+      ]
+    },
+    {
+      "id": "ca-on",
+      "name": "Ontario",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/ontario",
+      "bbox": [
+        -95.16,
+        41.66,
+        -74.34,
+        56.86
+      ]
+    },
+    {
+      "id": "ca-pe",
+      "name": "Prince Edward Island",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/prince-edward-island",
+      "bbox": [
+        -64.42,
+        45.94,
+        -61.97,
+        47.06
+      ]
+    },
+    {
+      "id": "ca-qc",
+      "name": "Quebec",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/quebec",
+      "bbox": [
+        -79.76,
+        44.99,
+        -57.1,
+        62.59
+      ]
+    },
+    {
+      "id": "ca-sk",
+      "name": "Saskatchewan",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/saskatchewan",
+      "bbox": [
+        -110.0,
+        49.0,
+        -101.36,
+        60.0
+      ]
+    },
+    {
+      "id": "ca-yt",
+      "name": "Yukon",
+      "type": "state",
+      "country": "CA",
+      "geofabrikArea": "north-america/canada/yukon",
+      "bbox": [
+        -141.0,
+        60.0,
+        -123.81,
+        69.65
+      ]
+    },
+    {
+      "id": "central-america",
+      "name": "Central America (Guatemala\u2013Panama)",
+      "type": "country",
+      "geofabrikArea": "central-america",
+      "bbox": [
+        -92.31,
+        7.22,
+        -77.16,
+        21.55
+      ]
+    },
+    {
+      "id": "cu",
+      "name": "Cuba",
+      "type": "country",
+      "iso": "CU",
+      "geofabrikArea": "central-america/cuba",
+      "bbox": [
+        -84.96,
+        19.83,
+        -74.13,
+        23.2
+      ]
+    },
+    {
+      "id": "ht",
+      "name": "Haiti & Dominican Republic",
+      "type": "country",
+      "iso": "HT",
+      "geofabrikArea": "central-america/haiti-and-domrep",
+      "bbox": [
+        -74.46,
+        17.55,
+        -68.32,
+        19.98
+      ]
+    },
+    {
+      "id": "jm",
+      "name": "Jamaica",
+      "type": "country",
+      "iso": "JM",
+      "geofabrikArea": "central-america/jamaica",
+      "bbox": [
+        -78.37,
+        17.7,
+        -76.18,
+        18.53
+      ]
+    },
+    {
+      "id": "ar",
+      "name": "Argentina",
+      "type": "country",
+      "iso": "AR",
+      "geofabrikArea": "south-america/argentina",
+      "bbox": [
+        -73.59,
+        -55.06,
+        -53.64,
+        -21.78
+      ]
+    },
+    {
+      "id": "bo",
+      "name": "Bolivia",
+      "type": "country",
+      "iso": "BO",
+      "geofabrikArea": "south-america/bolivia",
+      "bbox": [
+        -69.65,
+        -22.9,
+        -57.46,
+        -9.68
+      ]
+    },
+    {
+      "id": "br-norte",
+      "name": "Brazil \u00b7 North",
+      "type": "state",
+      "country": "BR",
+      "geofabrikArea": "south-america/brazil/norte",
+      "bbox": [
+        -73.99,
+        -13.69,
+        -45.97,
+        5.27
+      ]
+    },
+    {
+      "id": "br-nordeste",
+      "name": "Brazil \u00b7 Northeast",
+      "type": "state",
+      "country": "BR",
+      "geofabrikArea": "south-america/brazil/nordeste",
+      "bbox": [
+        -48.76,
+        -18.35,
+        -34.79,
+        -1.05
+      ]
+    },
+    {
+      "id": "br-centro-oeste",
+      "name": "Brazil \u00b7 Center-West",
+      "type": "state",
+      "country": "BR",
+      "geofabrikArea": "south-america/brazil/centro-oeste",
+      "bbox": [
+        -61.62,
+        -24.07,
+        -45.92,
+        -7.32
+      ]
+    },
+    {
+      "id": "br-sudeste",
+      "name": "Brazil \u00b7 Southeast",
+      "type": "state",
+      "country": "BR",
+      "geofabrikArea": "south-america/brazil/sudeste",
+      "bbox": [
+        -51.05,
+        -25.31,
+        -39.69,
+        -14.23
+      ]
+    },
+    {
+      "id": "br-sul",
+      "name": "Brazil \u00b7 South",
+      "type": "state",
+      "country": "BR",
+      "geofabrikArea": "south-america/brazil/sul",
+      "bbox": [
+        -57.65,
+        -33.75,
+        -47.85,
+        -22.52
+      ]
+    },
+    {
+      "id": "cl",
+      "name": "Chile",
+      "type": "country",
+      "iso": "CL",
+      "geofabrikArea": "south-america/chile",
+      "bbox": [
+        -75.65,
+        -55.92,
+        -66.42,
+        -17.51
+      ]
+    },
+    {
+      "id": "co",
+      "name": "Colombia",
+      "type": "country",
+      "iso": "CO",
+      "geofabrikArea": "south-america/colombia",
+      "bbox": [
+        -79.03,
+        -4.23,
+        -66.87,
+        12.59
+      ]
+    },
+    {
+      "id": "ec",
+      "name": "Ecuador",
+      "type": "country",
+      "iso": "EC",
+      "geofabrikArea": "south-america/ecuador",
+      "bbox": [
+        -91.66,
+        -5.02,
+        -75.19,
+        1.68
+      ]
+    },
+    {
+      "id": "gf",
+      "name": "Guyana, Suriname, French Guiana",
+      "type": "country",
+      "geofabrikArea": "south-america/guyana-suriname-french-guiana",
+      "bbox": [
+        -61.41,
+        1.18,
+        -51.63,
+        8.55
+      ]
+    },
+    {
+      "id": "py",
+      "name": "Paraguay",
+      "type": "country",
+      "iso": "PY",
+      "geofabrikArea": "south-america/paraguay",
+      "bbox": [
+        -62.65,
+        -27.61,
+        -54.26,
+        -19.3
+      ]
+    },
+    {
+      "id": "pe",
+      "name": "Peru",
+      "type": "country",
+      "iso": "PE",
+      "geofabrikArea": "south-america/peru",
+      "bbox": [
+        -81.33,
+        -18.35,
+        -68.66,
+        -0.04
+      ]
+    },
+    {
+      "id": "uy",
+      "name": "Uruguay",
+      "type": "country",
+      "iso": "UY",
+      "geofabrikArea": "south-america/uruguay",
+      "bbox": [
+        -58.44,
+        -34.97,
+        -53.18,
+        -30.09
+      ]
+    },
+    {
+      "id": "ve",
+      "name": "Venezuela",
+      "type": "country",
+      "iso": "VE",
+      "geofabrikArea": "south-america/venezuela",
+      "bbox": [
+        -73.36,
+        0.65,
+        -59.81,
+        12.2
+      ]
+    },
+    {
+      "id": "dz",
+      "name": "Algeria",
+      "type": "country",
+      "iso": "DZ",
+      "geofabrikArea": "africa/algeria",
+      "bbox": [
+        -8.67,
+        18.97,
+        11.99,
+        37.09
+      ]
+    },
+    {
+      "id": "ao",
+      "name": "Angola",
+      "type": "country",
+      "iso": "AO",
+      "geofabrikArea": "africa/angola",
+      "bbox": [
+        11.67,
+        -18.04,
+        24.08,
+        -4.38
+      ]
+    },
+    {
+      "id": "bj",
+      "name": "Benin",
+      "type": "country",
+      "iso": "BJ",
+      "geofabrikArea": "africa/benin",
+      "bbox": [
+        0.77,
+        6.23,
+        3.85,
+        12.42
+      ]
+    },
+    {
+      "id": "bw",
+      "name": "Botswana",
+      "type": "country",
+      "iso": "BW",
+      "geofabrikArea": "africa/botswana",
+      "bbox": [
+        19.99,
+        -26.91,
+        29.37,
+        -17.78
+      ]
+    },
+    {
+      "id": "bf",
+      "name": "Burkina Faso",
+      "type": "country",
+      "iso": "BF",
+      "geofabrikArea": "africa/burkina-faso",
+      "bbox": [
+        -5.52,
+        9.4,
+        2.4,
+        15.08
+      ]
+    },
+    {
+      "id": "bi",
+      "name": "Burundi",
+      "type": "country",
+      "iso": "BI",
+      "geofabrikArea": "africa/burundi",
+      "bbox": [
+        29.0,
+        -4.47,
+        30.85,
+        -2.31
+      ]
+    },
+    {
+      "id": "cm",
+      "name": "Cameroon",
+      "type": "country",
+      "iso": "CM",
+      "geofabrikArea": "africa/cameroon",
+      "bbox": [
+        8.49,
+        1.65,
+        16.2,
+        13.08
+      ]
+    },
+    {
+      "id": "cv",
+      "name": "Cape Verde",
+      "type": "country",
+      "iso": "CV",
+      "geofabrikArea": "africa/cape-verde",
+      "bbox": [
+        -25.36,
+        14.8,
+        -22.66,
+        17.2
+      ]
+    },
+    {
+      "id": "cf",
+      "name": "Central African Republic",
+      "type": "country",
+      "iso": "CF",
+      "geofabrikArea": "africa/central-african-republic",
+      "bbox": [
+        14.42,
+        2.22,
+        27.46,
+        11.0
+      ]
+    },
+    {
+      "id": "td",
+      "name": "Chad",
+      "type": "country",
+      "iso": "TD",
+      "geofabrikArea": "africa/chad",
+      "bbox": [
+        13.47,
+        7.42,
+        24.0,
+        23.45
+      ]
+    },
+    {
+      "id": "km",
+      "name": "Comoros",
+      "type": "country",
+      "iso": "KM",
+      "geofabrikArea": "africa/comores",
+      "bbox": [
+        43.21,
+        -12.42,
+        44.55,
+        -11.36
+      ]
+    },
+    {
+      "id": "cg",
+      "name": "Congo (Brazzaville)",
+      "type": "country",
+      "iso": "CG",
+      "geofabrikArea": "africa/congo-brazzaville",
+      "bbox": [
+        11.21,
+        -5.04,
+        18.64,
+        3.73
+      ]
+    },
+    {
+      "id": "cd",
+      "name": "Congo (Kinshasa)",
+      "type": "country",
+      "iso": "CD",
+      "geofabrikArea": "africa/congo-democratic-republic",
+      "bbox": [
+        12.21,
+        -13.46,
+        31.31,
+        5.39
+      ]
+    },
+    {
+      "id": "dj",
+      "name": "Djibouti",
+      "type": "country",
+      "iso": "DJ",
+      "geofabrikArea": "africa/djibouti",
+      "bbox": [
+        41.74,
+        10.91,
+        43.42,
+        12.71
+      ]
+    },
+    {
+      "id": "eg",
+      "name": "Egypt",
+      "type": "country",
+      "iso": "EG",
+      "geofabrikArea": "africa/egypt",
+      "bbox": [
+        24.7,
+        21.99,
+        36.86,
+        31.67
+      ]
+    },
+    {
+      "id": "gq",
+      "name": "Equatorial Guinea",
+      "type": "country",
+      "iso": "GQ",
+      "geofabrikArea": "africa/equatorial-guinea",
+      "bbox": [
+        5.62,
+        -1.48,
+        11.34,
+        3.78
+      ]
+    },
+    {
+      "id": "er",
+      "name": "Eritrea",
+      "type": "country",
+      "iso": "ER",
+      "geofabrikArea": "africa/eritrea",
+      "bbox": [
+        36.45,
+        12.36,
+        43.13,
+        18.0
+      ]
+    },
+    {
+      "id": "et",
+      "name": "Ethiopia",
+      "type": "country",
+      "iso": "ET",
+      "geofabrikArea": "africa/ethiopia",
+      "bbox": [
+        32.99,
+        3.4,
+        47.99,
+        14.89
+      ]
+    },
+    {
+      "id": "ga",
+      "name": "Gabon",
+      "type": "country",
+      "iso": "GA",
+      "geofabrikArea": "africa/gabon",
+      "bbox": [
+        8.7,
+        -3.98,
+        14.5,
+        2.32
+      ]
+    },
+    {
+      "id": "gm",
+      "name": "Gambia",
+      "type": "country",
+      "iso": "GM",
+      "geofabrikArea": "africa/gambia",
+      "bbox": [
+        -16.83,
+        13.06,
+        -13.79,
+        13.83
+      ]
+    },
+    {
+      "id": "gh",
+      "name": "Ghana",
+      "type": "country",
+      "iso": "GH",
+      "geofabrikArea": "africa/ghana",
+      "bbox": [
+        -3.26,
+        4.71,
+        1.2,
+        11.18
+      ]
+    },
+    {
+      "id": "gn",
+      "name": "Guinea",
+      "type": "country",
+      "iso": "GN",
+      "geofabrikArea": "africa/guinea",
+      "bbox": [
+        -15.08,
+        7.19,
+        -7.65,
+        12.68
+      ]
+    },
+    {
+      "id": "gw",
+      "name": "Guinea-Bissau",
+      "type": "country",
+      "iso": "GW",
+      "geofabrikArea": "africa/guinea-bissau",
+      "bbox": [
+        -16.72,
+        10.92,
+        -13.64,
+        12.68
+      ]
+    },
+    {
+      "id": "ci",
+      "name": "Ivory Coast",
+      "type": "country",
+      "iso": "CI",
+      "geofabrikArea": "africa/ivory-coast",
+      "bbox": [
+        -8.61,
+        4.36,
+        -2.49,
+        10.74
+      ]
+    },
+    {
+      "id": "ke",
+      "name": "Kenya",
+      "type": "country",
+      "iso": "KE",
+      "geofabrikArea": "africa/kenya",
+      "bbox": [
+        33.91,
+        -4.68,
+        41.91,
+        5.51
+      ]
+    },
+    {
+      "id": "ls",
+      "name": "Lesotho",
+      "type": "country",
+      "iso": "LS",
+      "geofabrikArea": "africa/lesotho",
+      "bbox": [
+        27.01,
+        -30.65,
+        29.46,
+        -28.57
+      ]
+    },
+    {
+      "id": "lr",
+      "name": "Liberia",
+      "type": "country",
+      "iso": "LR",
+      "geofabrikArea": "africa/liberia",
+      "bbox": [
+        -11.49,
+        4.35,
+        -7.37,
+        8.55
+      ]
+    },
+    {
+      "id": "ly",
+      "name": "Libya",
+      "type": "country",
+      "iso": "LY",
+      "geofabrikArea": "africa/libya",
+      "bbox": [
+        9.39,
+        19.5,
+        25.16,
+        33.17
+      ]
+    },
+    {
+      "id": "mg",
+      "name": "Madagascar",
+      "type": "country",
+      "iso": "MG",
+      "geofabrikArea": "africa/madagascar",
+      "bbox": [
+        43.22,
+        -25.61,
+        50.48,
+        -11.95
+      ]
+    },
+    {
+      "id": "mw",
+      "name": "Malawi",
+      "type": "country",
+      "iso": "MW",
+      "geofabrikArea": "africa/malawi",
+      "bbox": [
+        32.68,
+        -17.13,
+        35.92,
+        -9.37
+      ]
+    },
+    {
+      "id": "ml",
+      "name": "Mali",
+      "type": "country",
+      "iso": "ML",
+      "geofabrikArea": "africa/mali",
+      "bbox": [
+        -12.24,
+        10.16,
+        4.25,
+        24.99
+      ]
+    },
+    {
+      "id": "mr",
+      "name": "Mauritania",
+      "type": "country",
+      "iso": "MR",
+      "geofabrikArea": "africa/mauritania",
+      "bbox": [
+        -17.07,
+        14.72,
+        -4.83,
+        27.3
+      ]
+    },
+    {
+      "id": "mu",
+      "name": "Mauritius",
+      "type": "country",
+      "iso": "MU",
+      "geofabrikArea": "africa/mauritius",
+      "bbox": [
+        56.51,
+        -20.53,
+        63.5,
+        -10.3
+      ]
+    },
+    {
+      "id": "ma",
+      "name": "Morocco",
+      "type": "country",
+      "iso": "MA",
+      "geofabrikArea": "africa/morocco",
+      "bbox": [
+        -13.17,
+        27.66,
+        -1.01,
+        35.93
+      ]
+    },
+    {
+      "id": "mz",
+      "name": "Mozambique",
+      "type": "country",
+      "iso": "MZ",
+      "geofabrikArea": "africa/mozambique",
+      "bbox": [
+        30.21,
+        -26.87,
+        40.84,
+        -10.47
+      ]
+    },
+    {
+      "id": "na",
+      "name": "Namibia",
+      "type": "country",
+      "iso": "NA",
+      "geofabrikArea": "africa/namibia",
+      "bbox": [
+        11.71,
+        -28.97,
+        25.26,
+        -16.96
+      ]
+    },
+    {
+      "id": "ne",
+      "name": "Niger",
+      "type": "country",
+      "iso": "NE",
+      "geofabrikArea": "africa/niger",
+      "bbox": [
+        0.17,
+        11.69,
+        15.99,
+        23.52
+      ]
+    },
+    {
+      "id": "ng",
+      "name": "Nigeria",
+      "type": "country",
+      "iso": "NG",
+      "geofabrikArea": "africa/nigeria",
+      "bbox": [
+        2.69,
+        4.27,
+        14.68,
+        13.89
+      ]
+    },
+    {
+      "id": "rw",
+      "name": "Rwanda",
+      "type": "country",
+      "iso": "RW",
+      "geofabrikArea": "africa/rwanda",
+      "bbox": [
+        28.86,
+        -2.84,
+        30.9,
+        -1.05
+      ]
+    },
+    {
+      "id": "st",
+      "name": "Sao Tome & Principe",
+      "type": "country",
+      "iso": "ST",
+      "geofabrikArea": "africa/sao-tome-and-principe",
+      "bbox": [
+        6.46,
+        -0.02,
+        7.46,
+        1.71
+      ]
+    },
+    {
+      "id": "sn",
+      "name": "Senegal & Gambia",
+      "type": "country",
+      "iso": "SN",
+      "geofabrikArea": "africa/senegal-and-gambia",
+      "bbox": [
+        -17.54,
+        12.3,
+        -11.36,
+        16.69
+      ]
+    },
+    {
+      "id": "sc",
+      "name": "Seychelles",
+      "type": "country",
+      "iso": "SC",
+      "geofabrikArea": "africa/seychelles",
+      "bbox": [
+        46.2,
+        -10.22,
+        56.3,
+        -3.71
+      ]
+    },
+    {
+      "id": "sl",
+      "name": "Sierra Leone",
+      "type": "country",
+      "iso": "SL",
+      "geofabrikArea": "africa/sierra-leone",
+      "bbox": [
+        -13.3,
+        6.92,
+        -10.27,
+        10.0
+      ]
+    },
+    {
+      "id": "so",
+      "name": "Somalia",
+      "type": "country",
+      "iso": "SO",
+      "geofabrikArea": "africa/somalia",
+      "bbox": [
+        40.97,
+        -1.69,
+        51.42,
+        12.03
+      ]
+    },
+    {
+      "id": "za",
+      "name": "South Africa & Lesotho",
+      "type": "country",
+      "iso": "ZA",
+      "geofabrikArea": "africa/south-africa",
+      "bbox": [
+        16.45,
+        -34.84,
+        32.89,
+        -22.13
+      ]
+    },
+    {
+      "id": "ss",
+      "name": "South Sudan",
+      "type": "country",
+      "iso": "SS",
+      "geofabrikArea": "africa/south-sudan",
+      "bbox": [
+        23.44,
+        3.49,
+        35.95,
+        12.24
+      ]
+    },
+    {
+      "id": "sd",
+      "name": "Sudan",
+      "type": "country",
+      "iso": "SD",
+      "geofabrikArea": "africa/sudan",
+      "bbox": [
+        21.83,
+        8.69,
+        38.61,
+        22.23
+      ]
+    },
+    {
+      "id": "sz",
+      "name": "Eswatini",
+      "type": "country",
+      "iso": "SZ",
+      "geofabrikArea": "africa/swaziland",
+      "bbox": [
+        30.78,
+        -27.32,
+        32.14,
+        -25.72
+      ]
+    },
+    {
+      "id": "tz",
+      "name": "Tanzania",
+      "type": "country",
+      "iso": "TZ",
+      "geofabrikArea": "africa/tanzania",
+      "bbox": [
+        29.34,
+        -11.76,
+        40.45,
+        -0.98
+      ]
+    },
+    {
+      "id": "tg",
+      "name": "Togo",
+      "type": "country",
+      "iso": "TG",
+      "geofabrikArea": "africa/togo",
+      "bbox": [
+        -0.15,
+        6.1,
+        1.81,
+        11.14
+      ]
+    },
+    {
+      "id": "tn",
+      "name": "Tunisia",
+      "type": "country",
+      "iso": "TN",
+      "geofabrikArea": "africa/tunisia",
+      "bbox": [
+        7.52,
+        30.23,
+        11.6,
+        37.55
+      ]
+    },
+    {
+      "id": "ug",
+      "name": "Uganda",
+      "type": "country",
+      "iso": "UG",
+      "geofabrikArea": "africa/uganda",
+      "bbox": [
+        29.57,
+        -1.48,
+        35.04,
+        4.23
+      ]
+    },
+    {
+      "id": "zm",
+      "name": "Zambia",
+      "type": "country",
+      "iso": "ZM",
+      "geofabrikArea": "africa/zambia",
+      "bbox": [
+        21.99,
+        -18.08,
+        33.71,
+        -8.2
+      ]
+    },
+    {
+      "id": "zw",
+      "name": "Zimbabwe",
+      "type": "country",
+      "iso": "ZW",
+      "geofabrikArea": "africa/zimbabwe",
+      "bbox": [
+        25.24,
+        -22.42,
+        33.07,
+        -15.61
+      ]
+    },
+    {
+      "id": "af",
+      "name": "Afghanistan",
+      "type": "country",
+      "iso": "AF",
+      "geofabrikArea": "asia/afghanistan",
+      "bbox": [
+        60.5,
+        29.4,
+        74.92,
+        38.49
+      ]
+    },
+    {
+      "id": "az",
+      "name": "Azerbaijan",
+      "type": "country",
+      "iso": "AZ",
+      "geofabrikArea": "asia/azerbaijan",
+      "bbox": [
+        44.78,
+        38.39,
+        50.39,
+        41.91
+      ]
+    },
+    {
+      "id": "bd",
+      "name": "Bangladesh",
+      "type": "country",
+      "iso": "BD",
+      "geofabrikArea": "asia/bangladesh",
+      "bbox": [
+        88.01,
+        20.74,
+        92.67,
+        26.63
+      ]
+    },
+    {
+      "id": "bt",
+      "name": "Bhutan",
+      "type": "country",
+      "iso": "BT",
+      "geofabrikArea": "asia/bhutan",
+      "bbox": [
+        88.75,
+        26.7,
+        92.13,
+        28.32
+      ]
+    },
+    {
+      "id": "kh",
+      "name": "Cambodia",
+      "type": "country",
+      "iso": "KH",
+      "geofabrikArea": "asia/cambodia",
+      "bbox": [
+        102.34,
+        10.41,
+        107.61,
+        14.69
+      ]
+    },
+    {
+      "id": "cn",
+      "name": "China",
+      "type": "country",
+      "iso": "CN",
+      "geofabrikArea": "asia/china",
+      "bbox": [
+        73.5,
+        18.16,
+        134.77,
+        53.56
+      ],
+      "skipBuild": true,
+      "skipReason": "PBF too big (~7 GB) \u2014 TODO: bbox-split by province via osmium"
+    },
+    {
+      "id": "ge",
+      "name": "Georgia",
+      "type": "country",
+      "iso": "GE",
+      "geofabrikArea": "asia/georgia",
+      "bbox": [
+        40.0,
+        41.05,
+        46.74,
+        43.59
+      ]
+    },
+    {
+      "id": "in",
+      "name": "India",
+      "type": "country",
+      "iso": "IN",
+      "geofabrikArea": "asia/india",
+      "bbox": [
+        68.18,
+        6.75,
+        97.4,
+        35.51
+      ],
+      "skipBuild": true,
+      "skipReason": "PBF too big (~5 GB) \u2014 TODO: bbox-split by zone (north/south/east/west/central/northeast)"
+    },
+    {
+      "id": "id",
+      "name": "Indonesia",
+      "type": "country",
+      "iso": "ID",
+      "geofabrikArea": "asia/indonesia",
+      "bbox": [
+        95.01,
+        -11.01,
+        141.02,
+        6.08
+      ]
+    },
+    {
+      "id": "ir",
+      "name": "Iran",
+      "type": "country",
+      "iso": "IR",
+      "geofabrikArea": "asia/iran",
+      "bbox": [
+        44.03,
+        25.07,
+        63.32,
+        39.78
+      ]
+    },
+    {
+      "id": "iq",
+      "name": "Iraq",
+      "type": "country",
+      "iso": "IQ",
+      "geofabrikArea": "asia/iraq",
+      "bbox": [
+        38.79,
+        29.07,
+        48.58,
+        37.39
+      ]
+    },
+    {
+      "id": "il",
+      "name": "Israel & Palestine",
+      "type": "country",
+      "iso": "IL",
+      "geofabrikArea": "asia/israel-and-palestine",
+      "bbox": [
+        34.27,
+        29.48,
+        35.9,
+        33.34
+      ]
+    },
+    {
+      "id": "jp",
+      "name": "Japan",
+      "type": "country",
+      "iso": "JP",
+      "geofabrikArea": "asia/japan",
+      "bbox": [
+        122.93,
+        24.05,
+        153.99,
+        45.55
+      ]
+    },
+    {
+      "id": "jo",
+      "name": "Jordan",
+      "type": "country",
+      "iso": "JO",
+      "geofabrikArea": "asia/jordan",
+      "bbox": [
+        34.96,
+        29.2,
+        39.3,
+        33.37
+      ]
+    },
+    {
+      "id": "kz",
+      "name": "Kazakhstan",
+      "type": "country",
+      "iso": "KZ",
+      "geofabrikArea": "asia/kazakhstan",
+      "bbox": [
+        46.49,
+        40.57,
+        87.32,
+        55.45
+      ]
+    },
+    {
+      "id": "kg",
+      "name": "Kyrgyzstan",
+      "type": "country",
+      "iso": "KG",
+      "geofabrikArea": "asia/kyrgyzstan",
+      "bbox": [
+        69.27,
+        39.18,
+        80.28,
+        43.3
+      ]
+    },
+    {
+      "id": "la",
+      "name": "Laos",
+      "type": "country",
+      "iso": "LA",
+      "geofabrikArea": "asia/laos",
+      "bbox": [
+        100.09,
+        13.92,
+        107.7,
+        22.51
+      ]
+    },
+    {
+      "id": "lb",
+      "name": "Lebanon",
+      "type": "country",
+      "iso": "LB",
+      "geofabrikArea": "asia/lebanon",
+      "bbox": [
+        35.1,
+        33.05,
+        36.62,
+        34.69
+      ]
+    },
+    {
+      "id": "my",
+      "name": "Malaysia, Singapore, Brunei",
+      "type": "country",
+      "iso": "MY",
+      "geofabrikArea": "asia/malaysia-singapore-brunei",
+      "bbox": [
+        99.64,
+        0.85,
+        119.27,
+        7.36
+      ]
+    },
+    {
+      "id": "mv",
+      "name": "Maldives",
+      "type": "country",
+      "iso": "MV",
+      "geofabrikArea": "asia/maldives",
+      "bbox": [
+        72.69,
+        -0.69,
+        73.79,
+        7.1
+      ]
+    },
+    {
+      "id": "mn",
+      "name": "Mongolia",
+      "type": "country",
+      "iso": "MN",
+      "geofabrikArea": "asia/mongolia",
+      "bbox": [
+        87.74,
+        41.58,
+        119.93,
+        52.15
+      ]
+    },
+    {
+      "id": "mm",
+      "name": "Myanmar",
+      "type": "country",
+      "iso": "MM",
+      "geofabrikArea": "asia/myanmar",
+      "bbox": [
+        92.18,
+        9.53,
+        101.18,
+        28.55
+      ]
+    },
+    {
+      "id": "np",
+      "name": "Nepal",
+      "type": "country",
+      "iso": "NP",
+      "geofabrikArea": "asia/nepal",
+      "bbox": [
+        80.06,
+        26.35,
+        88.2,
+        30.45
+      ]
+    },
+    {
+      "id": "kp",
+      "name": "North Korea",
+      "type": "country",
+      "iso": "KP",
+      "geofabrikArea": "asia/north-korea",
+      "bbox": [
+        124.18,
+        37.67,
+        130.7,
+        43.01
+      ]
+    },
+    {
+      "id": "pk",
+      "name": "Pakistan",
+      "type": "country",
+      "iso": "PK",
+      "geofabrikArea": "asia/pakistan",
+      "bbox": [
+        60.87,
+        23.69,
+        77.84,
+        37.1
+      ]
+    },
+    {
+      "id": "ph",
+      "name": "Philippines",
+      "type": "country",
+      "iso": "PH",
+      "geofabrikArea": "asia/philippines",
+      "bbox": [
+        116.93,
+        4.59,
+        126.61,
+        21.12
+      ]
+    },
+    {
+      "id": "kr",
+      "name": "South Korea",
+      "type": "country",
+      "iso": "KR",
+      "geofabrikArea": "asia/south-korea",
+      "bbox": [
+        125.07,
+        33.1,
+        131.87,
+        38.62
+      ]
+    },
+    {
+      "id": "lk",
+      "name": "Sri Lanka",
+      "type": "country",
+      "iso": "LK",
+      "geofabrikArea": "asia/sri-lanka",
+      "bbox": [
+        79.65,
+        5.92,
+        81.88,
+        9.84
+      ]
+    },
+    {
+      "id": "sy",
+      "name": "Syria",
+      "type": "country",
+      "iso": "SY",
+      "geofabrikArea": "asia/syria",
+      "bbox": [
+        35.73,
+        32.31,
+        42.36,
+        37.32
+      ]
+    },
+    {
+      "id": "tw",
+      "name": "Taiwan",
+      "type": "country",
+      "iso": "TW",
+      "geofabrikArea": "asia/taiwan",
+      "bbox": [
+        119.31,
+        21.9,
+        122.0,
+        25.3
+      ]
+    },
+    {
+      "id": "tj",
+      "name": "Tajikistan",
+      "type": "country",
+      "iso": "TJ",
+      "geofabrikArea": "asia/tajikistan",
+      "bbox": [
+        67.34,
+        36.67,
+        75.15,
+        41.04
+      ]
+    },
+    {
+      "id": "th",
+      "name": "Thailand",
+      "type": "country",
+      "iso": "TH",
+      "geofabrikArea": "asia/thailand",
+      "bbox": [
+        97.34,
+        5.61,
+        105.64,
+        20.46
+      ]
+    },
+    {
+      "id": "tr",
+      "name": "Turkey",
+      "type": "country",
+      "iso": "TR",
+      "geofabrikArea": "asia/turkey",
+      "bbox": [
+        25.66,
+        35.82,
+        44.83,
+        42.11
+      ]
+    },
+    {
+      "id": "tm",
+      "name": "Turkmenistan",
+      "type": "country",
+      "iso": "TM",
+      "geofabrikArea": "asia/turkmenistan",
+      "bbox": [
+        52.34,
+        35.13,
+        66.69,
+        42.8
+      ]
+    },
+    {
+      "id": "uz",
+      "name": "Uzbekistan",
+      "type": "country",
+      "iso": "UZ",
+      "geofabrikArea": "asia/uzbekistan",
+      "bbox": [
+        55.99,
+        37.18,
+        73.13,
+        45.59
+      ]
+    },
+    {
+      "id": "vn",
+      "name": "Vietnam",
+      "type": "country",
+      "iso": "VN",
+      "geofabrikArea": "asia/vietnam",
+      "bbox": [
+        102.14,
+        8.18,
+        109.46,
+        23.39
+      ]
+    },
+    {
+      "id": "ye",
+      "name": "Yemen",
+      "type": "country",
+      "iso": "YE",
+      "geofabrikArea": "asia/yemen",
+      "bbox": [
+        42.55,
+        12.59,
+        54.47,
+        18.99
+      ]
+    },
+    {
+      "id": "gcc",
+      "name": "Gulf States (umbrella)",
+      "type": "country",
+      "geofabrikArea": "asia/gcc-states",
+      "bbox": [
+        34.49,
+        12.59,
+        59.84,
+        32.16
+      ]
+    },
+    {
+      "id": "au",
+      "name": "Australia",
+      "type": "country",
+      "iso": "AU",
+      "geofabrikArea": "australia-oceania/australia",
+      "bbox": [
+        112.91,
+        -43.74,
+        159.11,
+        -10.05
+      ]
+    },
+    {
+      "id": "fj",
+      "name": "Fiji",
+      "type": "country",
+      "iso": "FJ",
+      "geofabrikArea": "australia-oceania/fiji",
+      "bbox": [
+        177.13,
+        -19.22,
+        180.23,
+        -16.02
+      ]
+    },
+    {
+      "id": "nc",
+      "name": "New Caledonia",
+      "type": "country",
+      "iso": "NC",
+      "geofabrikArea": "australia-oceania/new-caledonia",
+      "bbox": [
+        163.97,
+        -22.69,
+        168.1,
+        -19.41
+      ]
+    },
+    {
+      "id": "nz",
+      "name": "New Zealand",
+      "type": "country",
+      "iso": "NZ",
+      "geofabrikArea": "australia-oceania/new-zealand",
+      "bbox": [
+        165.87,
+        -47.3,
+        178.85,
+        -34.1
+      ]
+    },
+    {
+      "id": "pg",
+      "name": "Papua New Guinea",
+      "type": "country",
+      "iso": "PG",
+      "geofabrikArea": "australia-oceania/papua-new-guinea",
+      "bbox": [
+        140.85,
+        -11.66,
+        156.02,
+        -1.32
+      ]
+    }
+  ]
+}

@@ -7,35 +7,39 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-// ─── Offline data plane (auto-fetched before every build) ────────────────────
+// ─── Bundled (Tier-0) offline assets (auto-fetched before every build) ───────
 //
-// The map ships with three big binary blobs that are too large for git:
-//   * app/libs/brouter.jar
-//   * app/src/main/assets/brouter/segments/*.rd5
-//   * app/src/main/assets/tiles/nl.mbtiles
+// The APK ships with the bits that must be available with zero network and
+// zero per-region downloads (plan §3 Tier 0):
+//   * app/libs/brouter.jar                                   (routing engine)
+//   * app/src/main/assets/bundled/brouter-profiles/*.brf,
+//     app/src/main/assets/bundled/brouter-profiles/lookups.dat (BRouter profiles)
+//   * app/src/main/assets/bundled/style.json,
+//     app/src/main/assets/bundled/density-grid.bin,
+//     app/src/main/assets/bundled/presets.json               (in git, ~520 KB)
+//   * app/src/main/assets/bundled/skeleton.mbtiles           (built on demand,
+//     plan §3 — global z0–z6 vector basemap, target ≈ 30 MB)
 //
-// On a fresh checkout these don't exist, and `mergeDebugNativeLibs` fails
-// with "File/directory does not exist: app/libs/brouter.jar". The tasks below
-// fetch / build them automatically the first time anyone runs ./gradlew, so
-// new contributors don't have to remember to run scripts/setup_offline_data.sh
-// before their first build. Already-present files are skipped — re-running is
-// instant.
+// Per-region detail packs (Tier 1/2) are NOT bundled — they're downloaded at
+// runtime by PackDownloader (plan §4). This keeps the APK ≤ 100 MB.
+//
+// On a fresh checkout the brouter.jar + profiles don't exist yet, and
+// `mergeDebugNativeLibs` fails with "File/directory does not exist:
+// app/libs/brouter.jar". The fetch task below grabs them automatically the
+// first time anyone runs ./gradlew. The skeleton mbtiles is opt-in (heavy
+// build, see scripts/build-pack/skeleton-build.sh) and absence is handled
+// gracefully at runtime — the map just falls back to the style.json
+// background until a regional pack is installed.
 
 val brouterVersion = "1.7.9"
 val brouterZipUrl =
     "https://github.com/abrensch/brouter/releases/download/v$brouterVersion/" +
         "brouter-$brouterVersion.zip"
 
-// Each segment is 5°×5°; together these cover the Netherlands (with some
-// spill into BE/DE/UK that's harmless).
-val brouterSegments = listOf("E0_N50.rd5", "E5_N50.rd5")
-val brouterSegmentBaseUrl = "https://brouter.de/brouter/segments4"
-
 val brouterJar = file("libs/brouter.jar")
-val brouterProfilesDir = file("src/main/assets/brouter/profiles")
-val brouterSegmentsDir = file("src/main/assets/brouter/segments")
-val mbtilesFile = file("src/main/assets/tiles/nl.mbtiles")
+val brouterProfilesDir = file("src/main/assets/bundled/brouter-profiles")
 val brouterProfileFiles = listOf("trekking.brf", "fastbike.brf", "car-fast.brf", "lookups.dat")
+val skeletonMbtiles = file("src/main/assets/bundled/skeleton.mbtiles")
 
 fun download(url: String, dest: File) {
     dest.parentFile.mkdirs()
@@ -54,7 +58,7 @@ fun download(url: String, dest: File) {
 }
 
 val fetchBrouterDist by tasks.registering {
-    description = "Downloads the BRouter all-jar + routing profiles."
+    description = "Downloads the BRouter all-jar + routing profiles into bundled/."
     group = "offline-data"
     val needs = !brouterJar.exists() ||
         brouterProfileFiles.any { !File(brouterProfilesDir, it).exists() }
@@ -82,68 +86,51 @@ val fetchBrouterDist by tasks.registering {
         for (name in brouterProfileFiles) {
             File(unpacked, "profiles2/$name").copyTo(File(brouterProfilesDir, name), overwrite = true)
         }
-        logger.lifecycle("    BRouter $brouterVersion staged.")
+        logger.lifecycle("    BRouter $brouterVersion staged into bundled/.")
     }
 }
 
-val fetchBrouterSegments by tasks.registering {
-    description = "Downloads the BRouter routing segments (.rd5) covering NL."
+// Opt-in: building the planet skeleton is multi-hour and needs ~80 GB free
+// disk. We don't dependsOn this from preBuild so a fresh checkout still
+// builds. Run `./gradlew :app:buildSkeletonMbtiles` (or the script directly)
+// before producing a release APK so the world basemap actually ships.
+val buildSkeletonMbtiles by tasks.registering {
+    description = "Builds the global z0–z6 vector skeleton mbtiles via scripts/build-pack/skeleton-build.sh (heavy: ~3h, ~80GB disk for planet build)."
     group = "offline-data"
-    val needs = brouterSegments.any { !File(brouterSegmentsDir, it).exists() }
-    onlyIf { needs }
+    onlyIf { !skeletonMbtiles.exists() || skeletonMbtiles.length() == 0L }
     doLast {
-        brouterSegmentsDir.mkdirs()
-        for (name in brouterSegments) {
-            val out = File(brouterSegmentsDir, name)
-            if (out.exists() && out.length() > 0) continue
-            download("$brouterSegmentBaseUrl/$name", out)
-        }
-    }
-}
-
-val buildNlMbtiles by tasks.registering {
-    description = "Builds the NL MBTiles raster pyramid via scripts/build_nl_mbtiles.py."
-    group = "offline-data"
-    onlyIf { !mbtilesFile.exists() || mbtilesFile.length() == 0L }
-    doLast {
-        val script = rootProject.file("scripts/build_nl_mbtiles.py")
+        val script = rootProject.file("scripts/build-pack/skeleton-build.sh")
         check(script.exists()) { "Missing $script" }
-        // Python is required only on the very first build (or after the
-        // mbtiles file is deleted). Most devs have python3 installed; pick
-        // whichever interpreter is on PATH.
-        val python = listOf("python3", "python").firstOrNull { exe ->
-            runCatching {
-                ProcessBuilder(exe, "--version")
-                    .redirectErrorStream(true)
-                    .start()
-                    .waitFor() == 0
-            }.getOrDefault(false)
-        } ?: error(
-            "Python is required to build the offline tile pack the first time, " +
-                "but neither 'python3' nor 'python' is on PATH. Either install Python " +
-                "or download a prebuilt nl.mbtiles to ${mbtilesFile}."
-        )
-        logger.lifecycle("    building $mbtilesFile via $python (this can take 5–15 min)…")
-        val proc = ProcessBuilder(python, script.absolutePath)
+
+        val javaCheck = ProcessBuilder("java", "-version")
+            .redirectErrorStream(true)
+            .start()
+        val javaOut = javaCheck.inputStream.bufferedReader().readText()
+        check(javaCheck.waitFor() == 0) {
+            "Planetiler needs JDK 21+ on PATH but `java -version` failed:\n$javaOut"
+        }
+
+        logger.lifecycle("    building $skeletonMbtiles (planet z0–z6 — multi-hour)…")
+        val proc = ProcessBuilder("bash", script.absolutePath)
             .directory(rootProject.projectDir)
             .redirectErrorStream(true)
             .start()
         proc.inputStream.bufferedReader().forEachLine { logger.lifecycle("      $it") }
         val rc = proc.waitFor()
-        check(rc == 0) { "build_nl_mbtiles.py exited with status $rc" }
+        check(rc == 0) { "skeleton-build.sh exited with status $rc" }
     }
 }
 
-val setupOfflineData by tasks.registering {
-    description = "Ensures all bundled offline assets (BRouter + MBTiles) are present."
+val setupBundledAssets by tasks.registering {
+    description = "Ensures the bundled (Tier-0) offline assets are present (BRouter jar + profiles). Skeleton is opt-in."
     group = "offline-data"
-    dependsOn(fetchBrouterDist, fetchBrouterSegments, buildNlMbtiles)
+    dependsOn(fetchBrouterDist)
 }
 
-// Wire into preBuild so any gradle build task runs setupOfflineData first.
+// Wire into preBuild so any gradle build task runs setupBundledAssets first.
 // AGP creates `preBuild` lazily, so we hook on afterEvaluate.
 afterEvaluate {
-    tasks.named("preBuild").configure { dependsOn(setupOfflineData) }
+    tasks.named("preBuild").configure { dependsOn(setupBundledAssets) }
 }
 
 android {
@@ -182,12 +169,14 @@ android {
     }
 
     androidResources {
-        // Routing segments and the MBTiles pack are already binary/SQLite —
-        // AAPT compression buys nothing and forces an unnecessary decompress
-        // step before we can copy them out to filesDir. .brf/.dat profiles
-        // are tiny but kept as-is for the same reason. Keeping them
-        // uncompressed also lets OfflineAssets fast-path the copy via
-        // AssetManager.openFd() + FileChannel.transferTo() (sendfile(2)).
+        // Bundled skeleton mbtiles + brouter profiles + lookups.dat are
+        // already binary/SQLite — AAPT compression buys nothing and forces
+        // an unnecessary decompress step before we can copy them out to
+        // filesDir. Keeping them uncompressed also lets OfflineAssets
+        // fast-path the copy via AssetManager.openFd() +
+        // FileChannel.transferTo() (sendfile(2)). .rd5 stays in the list
+        // for the future bundled skeleton.rd5 (plan §3) even though no
+        // .rd5 currently ships under assets/.
         noCompress += listOf("rd5", "mbtiles", "brf", "dat")
     }
 
@@ -229,12 +218,12 @@ dependencies {
     // Interactive map (MapLibre — uses Mapbox SDK 6 namespace)
     implementation(libs.maplibre.android.sdk)
     // Offline routing engine (BRouter, vendored as a JAR fetched at build
-    // time by the setupOfflineData task). The all-jar bundles protobuf +
+    // time by the setupBundledAssets task). The all-jar bundles protobuf +
     // osmosis-osm-binary so no transitive deps are needed.
     implementation(files("libs/brouter.jar"))
-    // Localhost tile server: serves /{z}/{x}/{y}.png from the bundled
-    // MBTiles SQLite to MapLibre, which doesn't ship an mbtiles:// scheme
-    // handler.
+    // Localhost tile server: serves /{z}/{x}/{y}.pbf vector tiles from the
+    // bundled skeleton + installed region packs to MapLibre, which doesn't
+    // ship an mbtiles:// scheme handler.
     implementation(libs.nanohttpd)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

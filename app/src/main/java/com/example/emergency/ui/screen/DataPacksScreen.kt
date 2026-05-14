@@ -524,7 +524,7 @@ private fun MetaStrip(pack: DataPack) {
                 .fillMaxWidth()
                 .padding(vertical = 12.dp),
         ) {
-            MetaItem(label = "WHEN", value = pack.whenLabel ?: "—")
+            MetaItem(label = "WHEN", value = pack.whenLabel ?: "-")
             MetaItem(label = "SIZE", value = pack.sizeLabel)
             MetaItem(label = "PRICE", value = pack.priceLabel ?: "Free")
         }
@@ -641,7 +641,7 @@ private fun TrustStrip(issuer: String?) {
                 withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.Medium)) {
                     append("Verified by $name. ")
                 }
-                append("Cryptographically signed. Stays on your device — never sent anywhere.")
+                append("Cryptographically signed. Stays on your device - never sent anywhere.")
             },
             style = typography.helper.copy(fontSize = 12.sp, lineHeight = 18.sp),
             color = colors.textDim,

@@ -7,10 +7,20 @@ import java.io.ByteArrayInputStream
 import java.io.File
 
 /**
- * Tiny localhost HTTP server that streams raster tiles out of a single
- * MBTiles SQLite file. Bridges the gap between MapLibre Android 10.x
- * (which only speaks `http(s)://` for raster sources) and our bundled
- * offline tile pack.
+ * Tiny localhost HTTP server that streams Mapbox-Vector-Tile (.pbf) blobs
+ * out of a single MBTiles SQLite file. Bridges the gap between MapLibre
+ * Android 10.x (which only speaks `http(s)://` for tile sources) and our
+ * on-device vector packs.
+ *
+ * After Step 3 (plan section 3) callers point this at either the bundled
+ * Tier-0 skeleton (`bundled/skeleton.mbtiles`, z0-z6 worldwide) or a
+ * downloaded per-region detail pack (`regions/<id>/tiles.mbtiles`,
+ * z7-z14). A future change (Step 4/5) will compose multiple sources
+ * behind a single endpoint.
+ *
+ * MBTiles vector tiles are stored gzip-compressed in `tile_data` per the
+ * MBTiles 1.3 spec. We forward them as-is with `Content-Encoding: gzip`
+ * so MapLibre's tile loader transparently decompresses on read.
  *
  * Bound to 127.0.0.1 with an OS-assigned port. The active port is exposed
  * via [tileUrlTemplate] for the style JSON.
@@ -53,7 +63,7 @@ class MbtilesServer(
     }
 
     val tileUrlTemplate: String
-        get() = "http://127.0.0.1:$listeningPort/{z}/{x}/{y}.png"
+        get() = "http://127.0.0.1:$listeningPort/{z}/{x}/{y}.pbf"
 
     override fun serve(session: IHTTPSession): Response {
         Log.d(TAG, "Request: ${session.uri}")
@@ -72,20 +82,24 @@ class MbtilesServer(
         val data = readTile(z, x, tmsY)
         if (data == null) {
             Log.w(TAG, "Tile MISS z=$z x=$x tmsY=$tmsY (xyzY=$xyzY)")
+            // Empty 204 keeps MapLibre from logging a hard error and lets
+            // it overzoom from the nearest available zoom level.
             return newFixedLengthResponse(
-                Response.Status.NOT_FOUND, "image/png", "",
+                Response.Status.NO_CONTENT, MIME_PBF, "",
             )
         }
         Log.d(TAG, "Tile HIT z=$z x=$x tmsY=$tmsY size=${data.size}")
 
         return newFixedLengthResponse(
             Response.Status.OK,
-            "image/png",
+            MIME_PBF,
             ByteArrayInputStream(data),
             data.size.toLong(),
         ).apply {
-            // Map tiles never change at a given (z,x,y); let MapLibre cache
-            // aggressively for the lifetime of the process.
+            // Vector MBTiles store the .pbf payload already gzip-compressed.
+            // Forwarding the encoding header lets MapLibre / OkHttp do the
+            // single decompress on read.
+            addHeader("Content-Encoding", "gzip")
             addHeader("Cache-Control", "public, max-age=31536000, immutable")
         }
     }
@@ -103,6 +117,7 @@ class MbtilesServer(
 
     companion object {
         private const val TAG = "MbtilesServer"
-        private val TILE_PATH = Regex("""^/(\d+)/(\d+)/(\d+)\.png$""")
+        private const val MIME_PBF = "application/x-protobuf"
+        private val TILE_PATH = Regex("""^/(\d+)/(\d+)/(\d+)\.pbf$""")
     }
 }

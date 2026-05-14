@@ -104,13 +104,27 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Free up runner disk
-        # Default ubuntu-latest images carry ~25 GB of pre-installed tooling
-        # we don't need (Android SDK, Haskell, dotnet, …). Strip them to free
-        # ~15 GB for Planetiler scratch.
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-                      /usr/local/.ghcup /usr/local/share/boost
-          df -h
+        # Default ubuntu-latest images have ~14 GB free out of ~30 GB. The
+        # community free-disk-space action strips the tool cache (~8.7 GB),
+        # Docker images (~3.2 GB), Android (~3.4 GB), Haskell (~5.7 GB),
+        # .NET (~1.6 GB), Swift, Boost, large packages (PHP/MySQL/etc) -
+        # ~50-60 GB free post-cleanup. Required for Planetiler on big
+        # countries (Germany/France/Italy/Spain), where the on-disk node
+        # index alone is ~10 GB. Without it, mmap fails with
+        # "Channel not open for writing - cannot extend file to required
+        # size" mid-osm_pass1.
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Show available disk
+        run: df -h
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -123,7 +137,10 @@ jobs:
 
       - name: Build pack ${{ matrix.region }}
         env:
-          PLANETILER_XMX: '5g'   # ubuntu-latest has 7 GB RAM
+          # ubuntu-latest has 7 GB RAM; leaving ~1 GB for OS + JDK overhead.
+          # Planetiler likes RAM for the pass-2 sort buffers; bumping past
+          # 5g shaves 10-20 % off osm_pass2 wall time on big PBFs.
+          PLANETILER_XMX: '6g'
         run: |
           set -euo pipefail
           bash scripts/build-pack/build.sh "${{ matrix.region }}" "${{ inputs.version }}"

@@ -20,13 +20,13 @@ class GpsLocationTool(private val context: Context) {
     
     fun getTool(): Tool = Tool(
         name = "get_location",
-        description = "Returns directions to a destination from the user's current GPS position. Required param: destination (e.g., 'nearest shelter'). Use when the user wants to navigate, hide, or reach a safe place.",
+        description = "Returns the user's current GPS coordinates as 'lat, lon'. " +
+            "Use only when the user asks where they are. For navigation or 'take me to X', " +
+            "use route_to instead - get_location no longer fakes turn-by-turn directions.",
         execute = ::execute,
     )
 
-    private suspend fun execute(params: Map<String, String>): ToolResult {
-        val destination = params["destination"]?.lowercase()?.trim() ?: ""
-
+    private suspend fun execute(@Suppress("UNUSED_PARAMETER") params: Map<String, String>): ToolResult {
         val hasFineLocation = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
@@ -47,31 +47,16 @@ class GpsLocationTool(private val context: Context) {
 
         return try {
             val location = getLocation()
-            val locationLine = if (location != null) {
+            if (location != null) {
                 val lat = String.format("%.6f", location.latitude)
                 val lon = String.format("%.6f", location.longitude)
-                "Current location: $lat, $lon"
+                ToolResult(success = true, data = "Current location: $lat, $lon")
             } else {
-                "Current location: unavailable (GPS not ready)"
-            }
-
-            if (destination.contains("shelter")) {
-                val data = buildString {
-                    appendLine(locationLine)
-                    appendLine()
-                    appendLine("Nearest shelter: Central Public Shelter")
-                    appendLine("Address: 14 Market Square, basement level")
-                    appendLine("Distance: 280 m (north)")
-                    appendLine("Walking time: ~3 minutes")
-                    appendLine("Directions:")
-                    appendLine("1. Exit your current building.")
-                    appendLine("2. Head north on Market Street for 250 m.")
-                    appendLine("3. Turn right at the blue shelter sign.")
-                    appendLine("4. Enter through the basement stairs on the left.")
-                }
-                ToolResult(success = true, data = data.trim())
-            } else {
-                ToolResult(success = true, data = locationLine)
+                ToolResult(
+                    success = false,
+                    data = "",
+                    error = "GPS not ready (no recent fix).",
+                )
             }
         } catch (e: Exception) {
             ToolResult(

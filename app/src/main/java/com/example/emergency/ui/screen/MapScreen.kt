@@ -3,9 +3,17 @@ package com.example.emergency.ui.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.example.emergency.offline.OfflineRouter
+import com.example.emergency.offline.navigation.NavigationProfile
 import com.example.emergency.ui.screen.common.SubScreenTopBar
 import com.example.emergency.ui.screen.map.InteractiveMap
 import com.example.emergency.ui.screen.map.MapDestination
@@ -29,6 +37,8 @@ import com.example.emergency.ui.theme.EmergencyTheme
 fun MapScreen(
     state: MapUiState,
     onBack: () -> Unit = {},
+    onOpenRegions: () -> Unit = {},
+    onStartNavigation: (OfflineRouter.Result, NavigationProfile, MapDestination?) -> Unit = { _, _, _ -> },
     initialDestination: MapDestination? = null,
     @Suppress("UNUSED_PARAMETER") onFilterClick: (MapFilter) -> Unit = {},
     @Suppress("UNUSED_PARAMETER") onPoiClick: (MapPoi) -> Unit = {},
@@ -41,10 +51,25 @@ fun MapScreen(
             .background(colors.bg)
             .statusBarsPadding(),
     ) {
-        SubScreenTopBar(title = state.title, onBack = onBack)
+        SubScreenTopBar(
+            title = state.title,
+            onBack = onBack,
+            trailing = {
+                IconButton(onClick = onOpenRegions) {
+                    Icon(
+                        imageVector = Icons.Outlined.CloudDownload,
+                        contentDescription = "Map regions",
+                        tint = colors.text,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            },
+        )
         InteractiveMap(
             modifier = Modifier.fillMaxSize(),
             initialDestination = initialDestination,
+            onOpenRegions = onOpenRegions,
+            onStartNavigation = onStartNavigation,
         )
     }
 }

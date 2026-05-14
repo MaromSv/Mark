@@ -77,7 +77,7 @@ fun CprWalkthroughCard(
                     color = Color.White,
                 )
                 Text(
-                    text = "Chest compressions · Rescue breaths",
+                    text = "Chest compressions  -  Rescue breaths",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Normal,
                     color = Color.White.copy(alpha = 0.85f),

@@ -50,7 +50,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 private const val BPM = 110
-// 60_000 ms / 110 bpm ≈ 545 ms per beat
+// 60_000 ms / 110 bpm ~= 545 ms per beat
 private const val BEAT_MS = 545L
 
 @Composable

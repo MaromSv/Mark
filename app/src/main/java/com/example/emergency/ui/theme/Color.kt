@@ -96,7 +96,7 @@ data class ToolPalettes(
     val getOut: ToolPalette,
 )
 
-// Tinted bg + saturated fg per design language. Chroma stays ≤ 0.18.
+// Tinted bg + saturated fg per design language. Chroma stays <= 0.18.
 // Mapped from oklch tokens in DESIGN_LANGUAGE.md / state.jsx.
 val LightToolPalettes = ToolPalettes(
     firstAid = ToolPalette(bg = Color(0xFFFEE2E2), fg = Color(0xFFEF4444)),

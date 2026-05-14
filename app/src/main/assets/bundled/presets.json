@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "countries": [
+    {
+      "id": "nl",
+      "name": "Netherlands",
+      "type": "country",
+      "bbox": [
+        3.0,
+        50.5,
+        7.5,
+        53.7
+      ],
+      "iso": "NL",
+      "children": [
+        {
+          "id": "nl-randstad",
+          "name": "Randstad (Amsterdam–Rotterdam)",
+          "type": "metro",
+          "bbox": [
+            4.2,
+            51.85,
+            5.2,
+            52.55
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ch",
+      "name": "Switzerland",
+      "type": "country",
+      "bbox": [
+        5.95,
+        45.8,
+        10.5,
+        47.81
+      ],
+      "iso": "CH",
+      "children": [
+        {
+          "id": "ch-zurich",
+          "name": "Zürich Metro",
+          "type": "metro",
+          "bbox": [
+            8.3,
+            47.2,
+            8.8,
+            47.55
+          ]
+        },
+        {
+          "id": "ch-geneva",
+          "name": "Geneva–Lausanne",
+          "type": "metro",
+          "bbox": [
+            5.95,
+            46.1,
+            6.9,
+            46.6
+          ]
+        }
+      ]
+    },
+    {
+      "id": "be",
+      "name": "Belgium",
+      "type": "country",
+      "bbox": [
+        2.5,
+        49.5,
+        6.4,
+        51.5
+      ],
+      "iso": "BE",
+      "children": [
+        {
+          "id": "be-brussels",
+          "name": "Brussels Metro",
+          "type": "metro",
+          "bbox": [
+            4.2,
+            50.75,
+            4.55,
+            50.95
+          ]
+        }
+      ]
+    },
+    {
+      "id": "monaco",
+      "name": "Monaco",
+      "type": "country",
+      "bbox": [
+        7.39,
+        43.72,
+        7.45,
+        43.76
+      ],
+      "iso": "MC"
+    }
+  ]
+}

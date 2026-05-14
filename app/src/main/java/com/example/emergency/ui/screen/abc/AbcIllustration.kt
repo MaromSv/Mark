@@ -362,7 +362,7 @@ private fun DrawScope.line(
 private fun DrawScope.strokeOf(width: Float): Stroke =
     Stroke(width = width.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
 
-// 0..1 phase → 0..1 tilt (0–35% rest, 45–65% peak, 85–100% rest)
+// 0..1 phase -> 0..1 tilt (0-35% rest, 45-65% peak, 85-100% rest)
 private fun tiltCurve(p: Float): Float = when {
     p < 0.35f -> p / 0.35f * 0f
     p < 0.45f -> (p - 0.35f) / 0.10f
