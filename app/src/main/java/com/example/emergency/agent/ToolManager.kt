@@ -1,10 +1,7 @@
 package com.example.emergency.agent
 
 import android.content.Context
-import com.example.emergency.agent.tools.AbcCheckTool
-import com.example.emergency.agent.tools.CprTool
 import com.example.emergency.agent.tools.FindNearestTool
-import com.example.emergency.agent.tools.GpsLocationTool
 import com.example.emergency.agent.tools.MedicalRagTool
 import com.example.emergency.agent.tools.RouteTool
 
@@ -16,11 +13,18 @@ class ToolManager(context: Context) {
     private val tools: Map<String, Tool>
     
     init {
+        // Chat-agent tools:
+        //   * search_medical_database — all medical Qs, with clarification
+        //     handled in the system prompt.
+        //   * find_nearest — "where is the nearest X" (drops a pin only,
+        //     no route polyline).
+        //   * route_to — turn-by-turn routing. Accepts coords or POI
+        //     categories directly.
+        // CPR and ABC are home-screen buttons, not tool calls.
+        // GpsLocationTool removed — route_to + find_nearest cover the cases
+        // it used to handle.
         val toolList = listOf(
-            GpsLocationTool(context).getTool(),
             MedicalRagTool(context).getTool(),
-            CprTool().getTool(),
-            AbcCheckTool().getTool(),
             FindNearestTool(context).getTool(),
             RouteTool(context).getTool(),
         )
@@ -91,9 +95,13 @@ class ToolManager(context: Context) {
                     if ("query" !in params && orphans.isNotEmpty()) {
                         params["query"] = orphans.joinToString(" ")
                     }
-                    // If "category" is missing for find_nearest, same logic
+                    // Same recovery for find_nearest's "category".
                     if (toolName == "find_nearest" && "category" !in params && orphans.isNotEmpty()) {
                         params["category"] = orphans.first().lowercase()
+                    }
+                    // Same recovery for route_to's "destination".
+                    if (toolName == "route_to" && "destination" !in params && orphans.isNotEmpty()) {
+                        params["destination"] = orphans.first()
                     }
 
                     toolCalls.add(ToolCall(toolName, params))

@@ -177,7 +177,12 @@ android {
         // FileChannel.transferTo() (sendfile(2)). .rd5 stays in the list
         // for the future bundled skeleton.rd5 (plan §3) even though no
         // .rd5 currently ships under assets/.
-        noCompress += listOf("rd5", "mbtiles", "brf", "dat")
+        // RAG asset extensions:
+        //   .onnx — model graph, already int8/float16 internally
+        //   .bin  — int8-quantized embedding table (we mmap-style read it)
+        // Compressing them costs build time and forces a decompress to RAM
+        // on first read with no size win.
+        noCompress += listOf("rd5", "mbtiles", "brf", "dat", "onnx", "bin")
     }
 
     packaging {
@@ -225,6 +230,11 @@ dependencies {
     // bundled skeleton + installed region packs to MapLibre, which doesn't
     // ship an mbtiles:// scheme handler.
     implementation(libs.nanohttpd)
+    // On-device RAG: ONNX Runtime for query-side embedding inference.
+    // Tokenization is a hand-rolled Kotlin BERT WordPiece (see rag/BertTokenizer.kt) —
+    // DJL's HF tokenizers JAR doesn't bundle Android natives, and the Rust
+    // tokenizers Android port is heavier than the few hundred lines this needs.
+    implementation(libs.onnxruntime.android)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

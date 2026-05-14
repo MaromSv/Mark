@@ -1,0 +1,7 @@
+{
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "dim": 384,
+  "count": 1218,
+  "quantization": "int8_per_row_symmetric",
+  "row_bytes": 388
+}
