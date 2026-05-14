@@ -211,7 +211,7 @@ fun LiveMiniMap(
         val outcome = OfflineRouter.route(
             from = userLocation,
             to = LatLng(destination.lat, destination.lon),
-            profileName = "trekking",
+            profileName = "walk",
             profilesDir = paths.profilesDir,
             installedPacks = installedPacks,
             catalog = catalog.packs,

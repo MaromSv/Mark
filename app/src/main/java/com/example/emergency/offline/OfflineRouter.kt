@@ -37,7 +37,7 @@ import java.nio.file.Files
  * of which country pack ships them.
  *
  * Profile names map 1:1 to the Mode.brouterProfile values in
- * InteractiveMap (`trekking`, `fastbike`, `car-fast`). Profiles are
+ * InteractiveMap (`walk`, `fastbike`, `car-fast`). Profiles are
  * global and stay bundled in the APK under `bundled/brouter-profiles/`.
  */
 object OfflineRouter {

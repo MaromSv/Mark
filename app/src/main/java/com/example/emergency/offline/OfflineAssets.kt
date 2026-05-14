@@ -13,8 +13,9 @@ import java.io.IOException
 /**
  * Stages the bundled (Tier-0, plan section 3) blobs from APK assets into
  * [Context.getFilesDir] so they can be opened as regular files:
- *   - BRouter profiles (`trekking.brf`, `fastbike.brf`, `car-fast.brf`,
- *     `lookups.dat`) - global, profile-agnostic; apply to any installed pack.
+ *   - BRouter profiles (`walk.brf`, `trekking.brf`, `fastbike.brf`,
+ *     `car-fast.brf`, `lookups.dat`) - global, profile-agnostic; apply to
+ *     any installed pack.
  *   - The global vector skeleton (`skeleton.mbtiles`, plan section 3 Tier 0)
  *     when present - built by `scripts/build-pack/skeleton-build.sh` and may
  *     be absent during dev iteration; staging tolerates that.
@@ -47,7 +48,7 @@ object OfflineAssets {
     //       (Step 3, plan section 3). Bumping forces cleanup of the legacy
     //       `tiles/` and `brouter/segments/` dirs left over in filesDir
     //       from previous installs.
-    private const val VERSION = 3
+    private const val VERSION = 4
     private const val VERSION_FILE = "offline-assets.version"
 
     // Asset roots inside the APK.
@@ -59,6 +60,7 @@ object OfflineAssets {
     // missing files fail loudly instead of silently leaving the stage
     // half-populated.
     private val PROFILE_FILES = listOf(
+        "walk.brf",
         "trekking.brf",
         "fastbike.brf",
         "car-fast.brf",

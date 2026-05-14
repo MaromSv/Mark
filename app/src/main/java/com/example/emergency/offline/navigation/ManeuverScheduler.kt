@@ -102,7 +102,7 @@ class ManeuverScheduler(private val profile: NavigationProfile) {
 
 /**
  * Travel profile for the navigation engine. Distinct from BRouter's
- * routing profile (`trekking`/`fastbike`/`car-fast`) because it drives
+ * routing profile (`walk`/`fastbike`/`car-fast`) because it drives
  * UI behaviour (trigger ladder, off-route threshold, camera tilt), not
  * the routing graph - a user might be cycling on a route originally
  * planned for walking, and the *navigation* heuristics should adapt.

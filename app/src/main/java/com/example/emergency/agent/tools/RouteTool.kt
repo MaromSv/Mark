@@ -40,7 +40,7 @@ import kotlin.coroutines.resume
  * to either pass coords or pick a category from the catalog.
  *
  * **Profile param**: `walk` (default) | `bike` | `drive`. Maps to
- * BRouter's `trekking` / `fastbike` / `car-fast`.
+ * BRouter's `walk` / `fastbike` / `car-fast`.
  *
  * **Result JSON shape**: includes `name`/`category`/`lat`/`lon` so the
  * existing chat->map handoff (`AppNavHost.parseFindNearestDestination`)
@@ -209,7 +209,8 @@ class RouteTool(private val context: Context) {
 
         /** Pure helper exposed for tests. */
         internal fun mapProfile(name: String): String? = when (name.lowercase()) {
-            "walk", "walking", "trekking", "foot" -> "trekking"
+            "walk", "walking", "foot", "hiking" -> "walk"
+            "trekking" -> "trekking"
             "bike", "biking", "cycle", "cycling", "fastbike" -> "fastbike"
             "drive", "driving", "car", "car-fast" -> "car-fast"
             else -> null

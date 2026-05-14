@@ -161,7 +161,11 @@ private enum class Mode(
     val icon: ImageVector,
     val navProfile: NavigationProfile,
 ) {
-    Walk("trekking", "Walk", Icons.Default.DirectionsWalk, NavigationProfile.Walking),
+    // walk.brf is BRouter's foot profile (validForFoot=1) so trip-time falls
+    // out of the StdModel walking-speed defaults, not the bike kinematic
+    // model that trekking/fastbike share. Switching from trekking fixes the
+    // bug where Walk and Bike showed identical durations.
+    Walk("walk", "Walk", Icons.Default.DirectionsWalk, NavigationProfile.Walking),
     Bike("fastbike", "Bike", Icons.Default.DirectionsBike, NavigationProfile.Biking),
     Drive("car-fast", "Drive", Icons.Default.DirectionsCar, NavigationProfile.Driving),
 }

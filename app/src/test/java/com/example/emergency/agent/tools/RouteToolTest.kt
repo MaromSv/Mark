@@ -48,9 +48,9 @@ class RouteToolTest {
 
     @Test
     fun mapProfileAcceptsKnownAliases() {
-        assertEquals("trekking", RouteTool.mapProfile("walk"))
-        assertEquals("trekking", RouteTool.mapProfile("walking"))
-        assertEquals("trekking", RouteTool.mapProfile("Foot"))   // case insensitive
+        assertEquals("walk", RouteTool.mapProfile("walk"))
+        assertEquals("walk", RouteTool.mapProfile("walking"))
+        assertEquals("walk", RouteTool.mapProfile("Foot"))   // case insensitive
         assertEquals("fastbike", RouteTool.mapProfile("bike"))
         assertEquals("fastbike", RouteTool.mapProfile("cycling"))
         assertEquals("car-fast", RouteTool.mapProfile("drive"))
