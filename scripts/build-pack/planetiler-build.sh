@@ -82,6 +82,8 @@ echo "Building ${OUT} from area=${AREA} (planetiler arg: ${PLANETILER_AREA}, Xmx
 
 java "-Xmx${XMX}" -jar "${PLANETILER_JAR}" \
     --download \
+    --http_retries=4 \
+    --http_timeout=300s \
     --area="${PLANETILER_AREA}" \
     --output="${OUT}" \
     --force \
@@ -89,6 +91,12 @@ java "-Xmx${XMX}" -jar "${PLANETILER_JAR}" \
     --maxzoom=14 \
     --tmpdir="${WORK_DIR}" \
     --download-dir="${CACHE_DIR}/download"
+# `--http_retries=4` / `--http_timeout=300`: the natural-earth and
+# water-polygons mirrors (osmdata.openstreetmap.de, dev.maptiler.download)
+# occasionally take >30s for the initial HEAD/size request, which made
+# whole region builds explode with `TimeoutException`. 5-minute timeout
+# plus 4 retries handles every flake we've seen without slowing down the
+# happy path.
 
 SIZE_MB=$(( $(stat -c%s "${OUT}" 2>/dev/null || stat -f%z "${OUT}") / 1024 / 1024 ))
 echo "Done: ${OUT} (${SIZE_MB} MB)"

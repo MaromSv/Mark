@@ -139,8 +139,13 @@ python3 "${SCRIPT_DIR}/manifest-build.py" \
     --name "${REGION_NAME}" \
     --type "${REGION_TYPE}" \
     --iso "${REGION_ISO}" \
-    --bbox "${BBOX}" \
+    --bbox="${BBOX}" \
     --version "${VERSION}"
+# `--bbox=` (with the equals sign) is required, not optional: bboxes that
+# start with a negative longitude/latitude (the entire western hemisphere
+# plus places like the Faroe Islands and Iceland) get split into two argv
+# tokens by `--bbox "${BBOX}"`, and argparse treats the leading `-` as a
+# new flag, failing with "expected one argument".
 
 # ─── Step 5: tar.gz ──────────────────────────────────────────────────────────
 

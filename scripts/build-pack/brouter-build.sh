@@ -57,16 +57,47 @@ fetch() {
         echo "    cached  ${dest##*/}"
         return 0
     fi
-    local tmp="${dest}.partial"
-    if command -v curl >/dev/null 2>&1; then
-        curl -fLs -o "${tmp}" "${url}"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -q -O "${tmp}" "${url}"
-    else
-        echo "ERROR: need curl or wget on PATH" >&2; exit 69
+    if ! command -v curl >/dev/null 2>&1; then
+        echo "ERROR: curl required for retry logic" >&2; exit 69
     fi
-    mv "${tmp}" "${dest}"
-    echo "    fetched ${dest##*/}"
+
+    local tmp="${dest}.partial"
+    local attempt=1 max_attempts=4 delay=2 http_code
+    while (( attempt <= max_attempts )); do
+        # `--write-out %{http_code}` gives us the response code without
+        # `-f`, so we can distinguish 404 (this segment isn't published)
+        # from 5xx / network blips (worth retrying).
+        http_code="$(curl -Ls -o "${tmp}" -w '%{http_code}' --max-time 120 "${url}" || echo "000")"
+        case "${http_code}" in
+            2??)
+                mv "${tmp}" "${dest}"
+                echo "    fetched ${dest##*/}"
+                return 0
+                ;;
+            404)
+                # brouter.de doesn't publish segments for empty-ocean
+                # tiles. A region's bbox can include such a tile (e.g.
+                # Ireland's eastern bbox edge extending into the
+                # E5°-E10° column where Wales/England live but the
+                # segment grid happens to not have an .rd5). Treat as
+                # non-fatal: warn and continue. The pack still routes
+                # everywhere covered by the segments we did get.
+                rm -f "${tmp}"
+                echo "    skipped ${dest##*/} (HTTP 404 - segment not published)" >&2
+                return 0
+                ;;
+            *)
+                rm -f "${tmp}"
+                echo "    HTTP ${http_code} for ${dest##*/}, attempt ${attempt}/${max_attempts}" >&2
+                ;;
+        esac
+        sleep "${delay}"
+        attempt=$(( attempt + 1 ))
+        delay=$(( delay * 2 ))
+    done
+
+    echo "ERROR: gave up on ${url} after ${max_attempts} attempts (last HTTP=${http_code})" >&2
+    return 1
 }
 
 # Translate lon/lat (5°-aligned origin of a segment tile) → BRouter's filename.
