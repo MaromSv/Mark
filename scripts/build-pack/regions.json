@@ -4,7 +4,8 @@
     "Bboxes are approximate (\u00b10.5\u00b0). They drive the picker UX (Custom-tab size estimate, RegionResolver coverage) but never crop data \u2014 Planetiler/BRouter use the Geofabrik PBF as-is.",
     "USA + Canada are state/province-split because the country-wide PBFs exceed GitHub Releases' 2 GB asset cap.",
     "Russia uses Geofabrik's federal-district splits for the same reason.",
-    "China, India, Brazil are listed as single-country packs with skipBuild=true: their PBFs (~5-10 GB each) need bbox-based osmium splitting before they fit. Add the splits when you need them \u2014 see the comment on each entry."
+    "Brazil uses Geofabrik's macroregion splits (norte/nordeste/centro-oeste/sudeste/sul).",
+    "China and India are listed as single-country packs with skipBuild=true: their PBFs (~2-7 GB each) need bbox-based osmium splitting before they fit. Add the splits when you need them \u2014 build.sh would need a parentArea+bbox flow plus a planetiler local-PBF mode."
   ],
   "regions": [
     {
@@ -1645,19 +1646,69 @@
       ]
     },
     {
-      "id": "br",
-      "name": "Brazil",
-      "type": "country",
-      "iso": "BR",
-      "geofabrikArea": "south-america/brazil",
+      "id": "br-norte",
+      "name": "Brazil \u00b7 North",
+      "type": "state",
+      "country": "BR",
+      "geofabrikArea": "south-america/brazil/norte",
       "bbox": [
         -73.99,
-        -33.75,
-        -34.79,
+        -13.69,
+        -45.97,
         5.27
-      ],
-      "skipBuild": true,
-      "skipReason": "PBF too big (~5 GB) \u2014 TODO: split by region (north/northeast/centerwest/southeast/south)"
+      ]
+    },
+    {
+      "id": "br-nordeste",
+      "name": "Brazil \u00b7 Northeast",
+      "type": "state",
+      "country": "BR",
+      "geofabrikArea": "south-america/brazil/nordeste",
+      "bbox": [
+        -48.76,
+        -18.35,
+        -34.79,
+        -1.05
+      ]
+    },
+    {
+      "id": "br-centro-oeste",
+      "name": "Brazil \u00b7 Center-West",
+      "type": "state",
+      "country": "BR",
+      "geofabrikArea": "south-america/brazil/centro-oeste",
+      "bbox": [
+        -61.62,
+        -24.07,
+        -45.92,
+        -7.32
+      ]
+    },
+    {
+      "id": "br-sudeste",
+      "name": "Brazil \u00b7 Southeast",
+      "type": "state",
+      "country": "BR",
+      "geofabrikArea": "south-america/brazil/sudeste",
+      "bbox": [
+        -51.05,
+        -25.31,
+        -39.69,
+        -14.23
+      ]
+    },
+    {
+      "id": "br-sul",
+      "name": "Brazil \u00b7 South",
+      "type": "state",
+      "country": "BR",
+      "geofabrikArea": "south-america/brazil/sul",
+      "bbox": [
+        -57.65,
+        -33.75,
+        -47.85,
+        -22.52
+      ]
     },
     {
       "id": "cl",
@@ -1761,20 +1812,6 @@
         -59.81,
         12.2
       ]
-    },
-    {
-      "id": "africa-east",
-      "name": "East Africa (umbrella)",
-      "type": "country",
-      "geofabrikArea": "africa",
-      "bbox": [
-        29.0,
-        -12.0,
-        52.0,
-        18.0
-      ],
-      "skipBuild": true,
-      "skipReason": "Use individual country slugs below."
     },
     {
       "id": "dz",
@@ -2563,15 +2600,13 @@
       "name": "Georgia",
       "type": "country",
       "iso": "GE",
-      "geofabrikArea": "asia/gcc-states",
+      "geofabrikArea": "asia/georgia",
       "bbox": [
         40.0,
         41.05,
         46.74,
         43.59
-      ],
-      "skipBuild": true,
-      "skipReason": "GCC umbrella; use individual splits"
+      ]
     },
     {
       "id": "in",
