@@ -143,12 +143,6 @@ fun RegionPickerScreen(
                     onDownload = downloader::download,
                     onCancel = downloader::cancel,
                 )
-                Tab.Custom -> CustomTab(
-                    grid = densityGrid,
-                    initialBbox = userLat?.let { lat ->
-                        userLon?.let { lon -> bboxAround(lat, lon, halfDeg = 0.25) }
-                    } ?: BoundingBox(4.6, 52.20, 5.10, 52.55),
-                )
                 Tab.Storage -> StorageTab(
                     installed = installed,
                     onDelete = downloader::delete,
@@ -162,8 +156,7 @@ fun RegionPickerScreen(
 private enum class Tab(val label: String) {
     Recommended("Recommended"),
     Browse("Browse"),
-    Custom("Custom"),
-    Storage("Storage"),
+    Storage("Installed Regions"),
 }
 
 @Composable

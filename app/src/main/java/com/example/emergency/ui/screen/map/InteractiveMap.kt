@@ -43,10 +43,13 @@ import androidx.compose.material.icons.filled.LocalGroceryStore
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.LocalPolice
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.Wc
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -180,10 +183,14 @@ private fun displayLabelForCategory(category: String): String = when (category) 
 
 private fun categoryIcon(category: String): ImageVector = when (category) {
     "hospital"            -> Icons.Default.LocalHospital
+    "doctor"              -> Icons.Default.MedicalServices
+    "first_aid"           -> Icons.Default.MedicalServices
     "aed"                 -> Icons.Default.Favorite
     "pharmacy"            -> Icons.Default.LocalPharmacy
     "police"              -> Icons.Default.LocalPolice
     "fire"                -> Icons.Default.LocalFireDepartment
+    "water"               -> Icons.Default.WaterDrop
+    "toilet", "wc"        -> Icons.Default.Wc
     "bunker"              -> Icons.Default.Shield
     "fuel"                -> Icons.Default.LocalGasStation
     "supermarket"         -> Icons.Default.LocalGroceryStore
@@ -226,6 +233,10 @@ fun InteractiveMap(
     initialDestination: MapDestination? = null,
     onOpenRegions: () -> Unit = {},
     onStartNavigation: (OfflineRouter.Result, NavigationProfile, MapDestination?) -> Unit = { _, _, _ -> },
+    // Flip to true to surface the floating debug panel (cluster sliders,
+    // POI scale, min-zoom). Defaults stay wired even when the panel is
+    // hidden so the map renders identically in both modes.
+    showDebugPanel: Boolean = false,
 ) {
     val context = LocalContext.current
 
@@ -656,24 +667,29 @@ fun InteractiveMap(
 
         // Temporary debug panel: bottom-left, collapsed by default. Tap
         // the chip to expand sliders for cluster radius / max zoom /
-        // POI scale + a clustering on-off toggle. Remove once dialed in.
-        DebugPanel(
-            expanded = debugExpanded,
-            onToggle = { debugExpanded = !debugExpanded },
-            clusteringEnabled = debugClusteringEnabled,
-            onClusteringEnabledChange = { debugClusteringEnabled = it },
-            clusterRadius = debugClusterRadius,
-            onClusterRadiusChange = { debugClusterRadius = it },
-            clusterMaxZoom = debugClusterMaxZoom,
-            onClusterMaxZoomChange = { debugClusterMaxZoom = it },
-            poiScale = debugPoiScale,
-            onPoiScaleChange = { debugPoiScale = it },
-            poiMinZoom = debugPoiMinZoom,
-            onPoiMinZoomChange = { debugPoiMinZoom = it },
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 12.dp, bottom = 12.dp),
-        )
+        // POI scale + a clustering on-off toggle. Hidden behind the
+        // [showDebugPanel] flag - flip it on at the call site to expose
+        // the controls during tuning. Defaults above keep the map
+        // rendering identically when hidden.
+        if (showDebugPanel) {
+            DebugPanel(
+                expanded = debugExpanded,
+                onToggle = { debugExpanded = !debugExpanded },
+                clusteringEnabled = debugClusteringEnabled,
+                onClusteringEnabledChange = { debugClusteringEnabled = it },
+                clusterRadius = debugClusterRadius,
+                onClusterRadiusChange = { debugClusterRadius = it },
+                clusterMaxZoom = debugClusterMaxZoom,
+                onClusterMaxZoomChange = { debugClusterMaxZoom = it },
+                poiScale = debugPoiScale,
+                onPoiScaleChange = { debugPoiScale = it },
+                poiMinZoom = debugPoiMinZoom,
+                onPoiMinZoomChange = { debugPoiMinZoom = it },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 12.dp, bottom = 12.dp),
+            )
+        }
 
         // First-launch nudge: if no map packs are installed, surface a
         // prominent banner pointing the user at the picker. The cloud icon
