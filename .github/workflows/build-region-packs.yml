@@ -196,4 +196,22 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/src/main/assets/bundled/catalog.json
           git commit -m "Auto-publish catalog (${{ needs.resolve-regions.outputs.count }} regions, packs-v${{ inputs.version }})"
-          git push
+          # The matrix can take hours; if anyone (a human or another
+          # workflow run) pushes to the branch in that window, a plain
+          # `git push` here gets rejected as non-fast-forward and the
+          # catalog never lands. Retry with rebase a few times before
+          # giving up - the catalog regen is deterministic, so a rebase
+          # never produces conflicts on the file we're committing.
+          branch="${GITHUB_REF#refs/heads/}"
+          for attempt in 1 2 3 4 5; do
+              if git push origin "HEAD:${branch}"; then
+                  echo "Catalog push succeeded on attempt ${attempt}."
+                  exit 0
+              fi
+              echo "Push attempt ${attempt} failed; rebasing onto latest origin/${branch}..."
+              git fetch origin "${branch}"
+              git rebase "origin/${branch}"
+              sleep $(( attempt * 3 ))
+          done
+          echo "Could not push catalog after 5 attempts." >&2
+          exit 1
