@@ -20,6 +20,7 @@ import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Thin Kotlin wrapper around [btools.router.RoutingEngine] that produces a
@@ -66,11 +67,19 @@ object OfflineRouter {
 
     // When the initial route is degenerate (BRouter snapped both endpoints
     // to the same node, or the destination isn't reachable by the active
-    // profile - common for car routing into pedestrian zones), retry with
-    // the destination shifted toward the user by these distances. First
-    // attempt that yields a polyline of >1 node wins. Up to ~6 extra
-    // routing calls in the worst case (~600 ms total on a warm graph).
-    private val FALLBACK_OFFSETS_M = listOf(100.0, 250.0, 500.0, 1000.0, 2000.0)
+    // profile - common for car routing into pedestrian zones), probe in a
+    // spiral *around* the destination. We try a handful of bearings at each
+    // expanding radius and keep the route whose snapped endpoint lands
+    // closest to the original POI. Probing around (not toward the user)
+    // matters: a toilet inside a pedestrian square should resolve to the
+    // road bordering that square, not to a road halfway to the user that
+    // happens to pass a different toilet.
+    //
+    // Layers go small-to-large; the first layer that produces *any* hit
+    // wins (no point widening the search if the closer ring already
+    // resolved). 4 cardinal + 4 intercardinal = 8 directions per layer.
+    private val FALLBACK_RADII_M = listOf(60.0, 150.0, 350.0, 800.0)
+    private val FALLBACK_BEARINGS_DEG = listOf(0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0)
 
     data class Result(
         val polyline: List<LatLng>,
@@ -158,24 +167,35 @@ object OfflineRouter {
             return@withContext fudgeTime(initial, profileName)
         }
 
-        // Initial attempt failed or returned a degenerate polyline. The
-        // most common cause is the destination POI sitting in a zone that
-        // the active profile can't enter (e.g. car routing into a
-        // pedestrian-only square or museum interior). Retry with the
-        // destination shifted along the great-circle line back toward the
-        // user; the first attempt that produces a real polyline becomes
-        // the route, and the user navigates as close to the POI as the
-        // graph allows. They still see the original POI marker on the map
-        // so the visual gap between the route end and the marker conveys
-        // "drive to here, then walk the rest" without us implementing
-        // multi-modal routing.
-        Log.d(TAG, "Initial route degenerate ($initial); trying fallback offsets toward user")
-        for (offsetM in FALLBACK_OFFSETS_M) {
-            val nearer = pointAlongLine(start = to, target = from, distanceM = offsetM)
-            val attempt = runBrouterRoute(segmentsDir, profileFile, from, nearer)
-            if (attempt is RouteOutcome.Success && attempt.result.polyline.size > 1) {
-                Log.d(TAG, "Fallback succeeded at ${offsetM}m offset toward user")
-                return@withContext fudgeTime(attempt, profileName)
+        // Initial attempt failed or returned a degenerate polyline. Most
+        // common cause: the destination POI sits in a zone the active
+        // profile can't enter (a toilet inside a pedestrian square for
+        // car routing). Probe outward from the POI in a spiral; among
+        // every probe that produces a real route, keep the one whose
+        // snapped endpoint is geographically closest to the original POI.
+        // The user sees the original POI marker plus a route that ends
+        // at the nearest reachable point - never on a road halfway to a
+        // *different* same-category POI somewhere else on the map.
+        Log.d(TAG, "Initial route degenerate ($initial); probing around POI")
+        for (radiusM in FALLBACK_RADII_M) {
+            var bestForLayer: Pair<RouteOutcome.Success, Double>? = null
+            for (bearing in FALLBACK_BEARINGS_DEG) {
+                val probe = pointAtBearing(to, bearing, radiusM)
+                val attempt = runBrouterRoute(segmentsDir, profileFile, from, probe)
+                if (attempt is RouteOutcome.Success && attempt.result.polyline.size > 1) {
+                    val endpoint = attempt.result.polyline.last()
+                    val gap = haversineMeters(endpoint, to)
+                    if (bestForLayer == null || gap < bestForLayer.second) {
+                        bestForLayer = attempt to gap
+                    }
+                }
+            }
+            if (bestForLayer != null) {
+                Log.d(
+                    TAG,
+                    "Spiral fallback hit at radius=${radiusM}m, endpoint ${"%.0f".format(bestForLayer.second)}m from POI",
+                )
+                return@withContext fudgeTime(bestForLayer.first, profileName)
             }
         }
         // Nothing worked. If the original outcome was already a typed
@@ -183,7 +203,7 @@ object OfflineRouter {
         // degenerate Success, convert it to NoRouteFound so the UI
         // doesn't render the contradictory "Route ready" message in red
         // for a route that has no usable polyline.
-        Log.w(TAG, "All fallback offsets exhausted; returning original outcome")
+        Log.w(TAG, "Spiral fallback exhausted; surfacing failure to UI")
         when (initial) {
             is RouteOutcome.Success -> RouteOutcome.NoRouteFound(
                 "Destination not reachable for $profileName from this location",
@@ -285,21 +305,15 @@ object OfflineRouter {
     }
 
     /**
-     * Returns the great-circle point [distanceM] metres from [start] in
-     * the direction of [target]. If [target] is closer than [distanceM]
-     * the result over-shoots past it (intentional - lets the caller
-     * step past the original destination if shorter offsets failed).
+     * Great-circle destination of moving [distanceM] metres from [from]
+     * along compass [bearingDeg] (0 = north, 90 = east). Used to seed the
+     * spiral probe around an unreachable POI.
      */
-    private fun pointAlongLine(start: LatLng, target: LatLng, distanceM: Double): LatLng {
+    private fun pointAtBearing(from: LatLng, bearingDeg: Double, distanceM: Double): LatLng {
         val r = 6_371_000.0
-        val phi1 = start.latitude * PI / 180.0
-        val lam1 = start.longitude * PI / 180.0
-        val phi2 = target.latitude * PI / 180.0
-        val lam2 = target.longitude * PI / 180.0
-        val dLam = lam2 - lam1
-        val y = sin(dLam) * cos(phi2)
-        val x = cos(phi1) * sin(phi2) - sin(phi1) * cos(phi2) * cos(dLam)
-        val bearing = atan2(y, x)
+        val phi1 = from.latitude * PI / 180.0
+        val lam1 = from.longitude * PI / 180.0
+        val bearing = bearingDeg * PI / 180.0
         val angDist = distanceM / r
         val phi = asin(sin(phi1) * cos(angDist) + cos(phi1) * sin(angDist) * cos(bearing))
         val lam = lam1 + atan2(
@@ -307,6 +321,23 @@ object OfflineRouter {
             cos(angDist) - sin(phi1) * sin(phi),
         )
         return LatLng(phi * 180.0 / PI, lam * 180.0 / PI)
+    }
+
+    /**
+     * Great-circle distance between [a] and [b] in metres. Used to score
+     * spiral-probe routes by how close their snapped endpoint lands to
+     * the original POI.
+     */
+    private fun haversineMeters(a: LatLng, b: LatLng): Double {
+        val r = 6_371_000.0
+        val phi1 = a.latitude * PI / 180.0
+        val phi2 = b.latitude * PI / 180.0
+        val dPhi = (b.latitude - a.latitude) * PI / 180.0
+        val dLam = (b.longitude - a.longitude) * PI / 180.0
+        val s1 = sin(dPhi / 2)
+        val s2 = sin(dLam / 2)
+        val h = s1 * s1 + cos(phi1) * cos(phi2) * s2 * s2
+        return 2 * r * atan2(sqrt(h), sqrt(1 - h))
     }
 
     // --- Merged segments farm ------------------------------------------------
