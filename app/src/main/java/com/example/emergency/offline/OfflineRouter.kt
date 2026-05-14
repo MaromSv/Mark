@@ -15,6 +15,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.nio.file.Files
+import kotlin.math.PI
+import kotlin.math.asin
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Thin Kotlin wrapper around [btools.router.RoutingEngine] that produces a
@@ -43,6 +48,29 @@ import java.nio.file.Files
 object OfflineRouter {
 
     private const val TAG = "OfflineRouter"
+
+    // Per-profile multipliers applied to BRouter's `track.totalSeconds`
+    // before we hand the duration to the UI / nav engine. BRouter's
+    // kinematic / StdModel give free-flow times that ignore stops at
+    // intersections, signals and headwinds, which is fine for routing
+    // decisions but consistently under-estimates real-world ETA. These
+    // factors were calibrated against Google Maps for short-to-medium
+    // urban routes in NL: walk +18 %, bike +55 %. Car-fast already
+    // tracks well because per-way `maxspeed` tags clamp it.
+    private val TIME_FUDGE_BY_PROFILE = mapOf(
+        "walk" to 1.18,
+        "trekking" to 1.55,
+        "fastbike" to 1.55,
+        "car-fast" to 1.0,
+    )
+
+    // When the initial route is degenerate (BRouter snapped both endpoints
+    // to the same node, or the destination isn't reachable by the active
+    // profile - common for car routing into pedestrian zones), retry with
+    // the destination shifted toward the user by these distances. First
+    // attempt that yields a polyline of >1 node wins. Up to ~6 extra
+    // routing calls in the worst case (~600 ms total on a warm graph).
+    private val FALLBACK_OFFSETS_M = listOf(100.0, 250.0, 500.0, 1000.0, 2000.0)
 
     data class Result(
         val polyline: List<LatLng>,
@@ -124,8 +152,59 @@ object OfflineRouter {
             )
         }
 
-        // --- Run BRouter --------------------------------------------------
-        try {
+        // --- Run BRouter (with degenerate-route fallback) -----------------
+        val initial = runBrouterRoute(segmentsDir, profileFile, from, to)
+        if (initial is RouteOutcome.Success && initial.result.polyline.size > 1) {
+            return@withContext fudgeTime(initial, profileName)
+        }
+
+        // Initial attempt failed or returned a degenerate polyline. The
+        // most common cause is the destination POI sitting in a zone that
+        // the active profile can't enter (e.g. car routing into a
+        // pedestrian-only square or museum interior). Retry with the
+        // destination shifted along the great-circle line back toward the
+        // user; the first attempt that produces a real polyline becomes
+        // the route, and the user navigates as close to the POI as the
+        // graph allows. They still see the original POI marker on the map
+        // so the visual gap between the route end and the marker conveys
+        // "drive to here, then walk the rest" without us implementing
+        // multi-modal routing.
+        Log.d(TAG, "Initial route degenerate ($initial); trying fallback offsets toward user")
+        for (offsetM in FALLBACK_OFFSETS_M) {
+            val nearer = pointAlongLine(start = to, target = from, distanceM = offsetM)
+            val attempt = runBrouterRoute(segmentsDir, profileFile, from, nearer)
+            if (attempt is RouteOutcome.Success && attempt.result.polyline.size > 1) {
+                Log.d(TAG, "Fallback succeeded at ${offsetM}m offset toward user")
+                return@withContext fudgeTime(attempt, profileName)
+            }
+        }
+        // Nothing worked. If the original outcome was already a typed
+        // failure (NoRouteFound, etc), bubble it up. If it was a
+        // degenerate Success, convert it to NoRouteFound so the UI
+        // doesn't render the contradictory "Route ready" message in red
+        // for a route that has no usable polyline.
+        Log.w(TAG, "All fallback offsets exhausted; returning original outcome")
+        when (initial) {
+            is RouteOutcome.Success -> RouteOutcome.NoRouteFound(
+                "Destination not reachable for $profileName from this location",
+            )
+            else -> initial
+        }
+    }
+
+    /**
+     * One BRouter routing call. Wrapped so [route] can retry with
+     * shifted destinations without redoing pre-flight or segment-merge
+     * work. Returns [RouteOutcome.Success] (possibly with a degenerate
+     * polyline), [RouteOutcome.NoRouteFound], or [RouteOutcome.GraphLoadFailed].
+     */
+    private fun runBrouterRoute(
+        segmentsDir: File,
+        profileFile: File,
+        from: LatLng,
+        to: LatLng,
+    ): RouteOutcome {
+        return try {
             // RoutingContext.localFunction is the absolute path to the .brf
             // profile. readGlobalConfig() also expects a global config file
             // alongside it; we don't ship one, so we can't call it. The
@@ -163,7 +242,7 @@ object OfflineRouter {
             engine.doRun(0L)
 
             val track = engine.foundTrack
-                ?: return@withContext RouteOutcome.NoRouteFound(
+                ?: return RouteOutcome.NoRouteFound(
                     engine.errorMessage ?: "BRouter returned no track and no error message",
                 )
 
@@ -187,9 +266,47 @@ object OfflineRouter {
                 ),
             )
         } catch (t: Throwable) {
-            Log.e(TAG, "BRouter failed for profile=$profileName", t)
+            Log.e(TAG, "BRouter call failed", t)
             RouteOutcome.GraphLoadFailed(t)
         }
+    }
+
+    /**
+     * Multiplies [success]'s `durationS` by the fudge factor for
+     * [profileName], so the UI sees a more realistic ETA than BRouter's
+     * raw kinematic estimate. Distance and polyline are untouched.
+     */
+    private fun fudgeTime(success: RouteOutcome.Success, profileName: String): RouteOutcome.Success {
+        val factor = TIME_FUDGE_BY_PROFILE[profileName] ?: return success
+        if (factor == 1.0) return success
+        return RouteOutcome.Success(
+            success.result.copy(durationS = success.result.durationS * factor),
+        )
+    }
+
+    /**
+     * Returns the great-circle point [distanceM] metres from [start] in
+     * the direction of [target]. If [target] is closer than [distanceM]
+     * the result over-shoots past it (intentional - lets the caller
+     * step past the original destination if shorter offsets failed).
+     */
+    private fun pointAlongLine(start: LatLng, target: LatLng, distanceM: Double): LatLng {
+        val r = 6_371_000.0
+        val phi1 = start.latitude * PI / 180.0
+        val lam1 = start.longitude * PI / 180.0
+        val phi2 = target.latitude * PI / 180.0
+        val lam2 = target.longitude * PI / 180.0
+        val dLam = lam2 - lam1
+        val y = sin(dLam) * cos(phi2)
+        val x = cos(phi1) * sin(phi2) - sin(phi1) * cos(phi2) * cos(dLam)
+        val bearing = atan2(y, x)
+        val angDist = distanceM / r
+        val phi = asin(sin(phi1) * cos(angDist) + cos(phi1) * sin(angDist) * cos(bearing))
+        val lam = lam1 + atan2(
+            sin(bearing) * sin(angDist) * cos(phi1),
+            cos(angDist) - sin(phi1) * sin(phi),
+        )
+        return LatLng(phi * 180.0 / PI, lam * 180.0 / PI)
     }
 
     // --- Merged segments farm ------------------------------------------------
