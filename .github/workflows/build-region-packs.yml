@@ -126,6 +126,17 @@ jobs:
       - name: Show available disk
         run: df -h
 
+      - name: Bump vm.max_map_count for mmap-heavy Planetiler
+        # The "Channel not open for writing - cannot extend file to
+        # required size" error we hit on Germany was NOT a disk-space
+        # problem (the runner has 121 GB free). It's the kernel's
+        # default `vm.max_map_count` limit (65530) being exhausted by
+        # Planetiler's many small mmap regions during osm_pass1 on a
+        # high-node-count PBF. Bump it to 1M so big countries fit.
+        run: |
+          sudo sysctl -w vm.max_map_count=1048576
+          echo "vm.max_map_count is now:" && cat /proc/sys/vm/max_map_count
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -173,7 +184,12 @@ jobs:
           # Robust against partial workflow runs — pull whatever the release
           # currently has, even if this run only built a subset.
           gh release download "${{ inputs.release_tag }}" --dir dist --pattern '*.tar.gz' || true
-          ls -lh dist/ | head -20
+          # Use `|| true` on the `ls | head` pipe: with set -euo pipefail
+          # active, `ls` getting SIGPIPE when `head` closes early after 20
+          # lines (which happens once we have >20 tarballs in dist/) would
+          # otherwise abort the whole publish-catalog step and leave the
+          # catalog stale on disk despite all the tarballs being there.
+          ls -lh dist/ 2>/dev/null | head -20 || true
           echo "Total tarballs: $(ls dist/*.tar.gz 2>/dev/null | wc -l)"
 
       - name: Regenerate catalog.json
@@ -196,4 +212,22 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/src/main/assets/bundled/catalog.json
           git commit -m "Auto-publish catalog (${{ needs.resolve-regions.outputs.count }} regions, packs-v${{ inputs.version }})"
-          git push
+          # The matrix can take hours; if anyone (a human or another
+          # workflow run) pushes to the branch in that window, a plain
+          # `git push` here gets rejected as non-fast-forward and the
+          # catalog never lands. Retry with rebase a few times before
+          # giving up - the catalog regen is deterministic, so a rebase
+          # never produces conflicts on the file we're committing.
+          branch="${GITHUB_REF#refs/heads/}"
+          for attempt in 1 2 3 4 5; do
+              if git push origin "HEAD:${branch}"; then
+                  echo "Catalog push succeeded on attempt ${attempt}."
+                  exit 0
+              fi
+              echo "Push attempt ${attempt} failed; rebasing onto latest origin/${branch}..."
+              git fetch origin "${branch}"
+              git rebase "origin/${branch}"
+              sleep $(( attempt * 3 ))
+          done
+          echo "Could not push catalog after 5 attempts." >&2
+          exit 1

@@ -22,14 +22,17 @@
 
 set -euo pipefail
 
-AREA="${1:-netherlands}"
-# Planetiler's --area expects the leaf country/state slug (e.g. "netherlands"
-# or "california"), not Geofabrik's full path ("europe/netherlands"). Strip
-# any directory prefix before passing it on. Keep AREA unchanged for our
-# own cache paths so different countries don't collide on a shared
-# 'work-netherlands' dir.
-PLANETILER_AREA="${AREA##*/}"
-DEFAULT_OUT="$(dirname "$0")/.cache/${PLANETILER_AREA}.mbtiles"
+AREA="${1:-europe/netherlands}"
+# Geofabrik path slug, e.g. "europe/netherlands", "north-america/us/georgia",
+# "asia/georgia". We construct the download URL directly and pass it via
+# `--osm_url` rather than using Planetiler's `--area=<leaf>` resolver,
+# which fails ambiguously when a leaf name occurs in multiple subtrees:
+#   - "georgia"    -> matches both asia/georgia AND us/georgia
+#   - "california" -> matches us/california, norcal, socal
+# Direct URL = zero ambiguity, works for every region in regions.json.
+AREA_LEAF="${AREA##*/}"
+GEOFABRIK_URL="https://download.geofabrik.de/${AREA}-latest.osm.pbf"
+DEFAULT_OUT="$(dirname "$0")/.cache/${AREA_LEAF}.mbtiles"
 OUT="${2:-$DEFAULT_OUT}"
 
 PLANETILER_VERSION="0.8.4"
@@ -78,19 +81,28 @@ fi
 # override via PLANETILER_XMX env var.
 XMX="${PLANETILER_XMX:-3g}"
 
-echo "Building ${OUT} from area=${AREA} (planetiler arg: ${PLANETILER_AREA}, Xmx=${XMX})..."
+SOURCE_PBF="${CACHE_DIR}/download/${AREA_LEAF}.osm.pbf"
+
+echo "Building ${OUT} from ${GEOFABRIK_URL} (Xmx=${XMX})..."
 
 java "-Xmx${XMX}" -jar "${PLANETILER_JAR}" \
     --download \
     --http_retries=4 \
     --http_timeout=300s \
-    --area="${PLANETILER_AREA}" \
+    --osm_url="${GEOFABRIK_URL}" \
+    --osm_path="${SOURCE_PBF}" \
     --output="${OUT}" \
     --force \
     --only-layers=water,waterway,transportation,transportation_name,boundary,place,park,water_name \
     --maxzoom=14 \
     --tmpdir="${WORK_DIR}" \
     --download-dir="${CACHE_DIR}/download"
+# Note: we previously passed --nodemap-type=sortedtable thinking the
+# `Channel not open for writing - cannot extend file to required size`
+# error on Germany was disk-pressure. It wasn't (runner has 121 GB
+# free). Root cause was kernel `vm.max_map_count` exhaustion - the
+# workflow now sysctls it up to 1 M before this script runs. Default
+# (`array`) nodemap is faster and works fine with plenty of disk.
 # `--http_retries=4` / `--http_timeout=300`: the natural-earth and
 # water-polygons mirrors (osmdata.openstreetmap.de, dev.maptiler.download)
 # occasionally take >30s for the initial HEAD/size request, which made
