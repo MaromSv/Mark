@@ -91,12 +91,19 @@ java "-Xmx${XMX}" -jar "${PLANETILER_JAR}" \
     --http_timeout=300s \
     --osm_url="${GEOFABRIK_URL}" \
     --osm_path="${SOURCE_PBF}" \
+    --osm_lazy_reads=false \
     --output="${OUT}" \
     --force \
     --only-layers=water,waterway,transportation,transportation_name,boundary,place,park,water_name \
     --maxzoom=14 \
     --tmpdir="${WORK_DIR}" \
     --download-dir="${CACHE_DIR}/download"
+# `--osm_lazy_reads=false`: Planetiler 0.8.4's lazy-block PBF reader
+# (osm_lazy_reads=true by default) trips a JDK mmap error on Germany's
+# 4.7 GB PBF mid-pass1, claiming "cannot extend file to required size"
+# when actually reading past the file's end. Forcing eager reads
+# sidesteps the lazy-reader codepath entirely. Small CPU cost on
+# smaller PBFs, large win on the >4 GB ones.
 # Note: we previously passed --nodemap-type=sortedtable thinking the
 # `Channel not open for writing - cannot extend file to required size`
 # error on Germany was disk-pressure. It wasn't (runner has 121 GB
