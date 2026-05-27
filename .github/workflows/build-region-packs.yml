@@ -213,20 +213,29 @@ jobs:
           git add app/src/main/assets/bundled/catalog.json
           git commit -m "Auto-publish catalog (${{ needs.resolve-regions.outputs.count }} regions, packs-v${{ inputs.version }})"
           # The matrix can take hours; if anyone (a human or another
-          # workflow run) pushes to the branch in that window, a plain
-          # `git push` here gets rejected as non-fast-forward and the
-          # catalog never lands. Retry with rebase a few times before
-          # giving up - the catalog regen is deterministic, so a rebase
-          # never produces conflicts on the file we're committing.
+          # workflow run) pushes catalog.json in that window, plain
+          # `git push` gets rejected. Retry with rebase, and use
+          # `-X theirs` so a conflicting catalog.json from upstream is
+          # automatically overwritten with ours (the regen we just did
+          # from the current release contents is, by definition, the
+          # source of truth — release tarballs cumulate, so the newer
+          # regen is always a superset of the older one). `-X theirs`
+          # in *rebase* context means "prefer the commit being replayed",
+          # i.e. our new catalog wins. Without this flag, two
+          # publish-catalog runs in the same hour fight over the file
+          # and the second loses.
           branch="${GITHUB_REF#refs/heads/}"
           for attempt in 1 2 3 4 5; do
               if git push origin "HEAD:${branch}"; then
                   echo "Catalog push succeeded on attempt ${attempt}."
                   exit 0
               fi
-              echo "Push attempt ${attempt} failed; rebasing onto latest origin/${branch}..."
+              echo "Push attempt ${attempt} failed; rebasing onto latest origin/${branch} with -X theirs..."
               git fetch origin "${branch}"
-              git rebase "origin/${branch}"
+              git rebase -X theirs "origin/${branch}" || {
+                  echo "Rebase failed even with -X theirs; aborting and retrying clean..."
+                  git rebase --abort || true
+              }
               sleep $(( attempt * 3 ))
           done
           echo "Could not push catalog after 5 attempts." >&2
