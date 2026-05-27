@@ -184,7 +184,12 @@ jobs:
           # Robust against partial workflow runs — pull whatever the release
           # currently has, even if this run only built a subset.
           gh release download "${{ inputs.release_tag }}" --dir dist --pattern '*.tar.gz' || true
-          ls -lh dist/ | head -20
+          # Use `|| true` on the `ls | head` pipe: with set -euo pipefail
+          # active, `ls` getting SIGPIPE when `head` closes early after 20
+          # lines (which happens once we have >20 tarballs in dist/) would
+          # otherwise abort the whole publish-catalog step and leave the
+          # catalog stale on disk despite all the tarballs being there.
+          ls -lh dist/ 2>/dev/null | head -20 || true
           echo "Total tarballs: $(ls dist/*.tar.gz 2>/dev/null | wc -l)"
 
       - name: Regenerate catalog.json
