@@ -139,17 +139,133 @@
       ]
     },
     {
-      "id": "de",
-      "name": "Germany",
-      "type": "country",
-      "iso": "DE",
-      "geofabrikArea": "europe/germany",
-      "bbox": [
-        5.86,
-        47.27,
-        15.05,
-        55.06
-      ]
+      "id": "de-baden-wuerttemberg",
+      "name": "Germany · Baden-Württemberg",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/baden-wuerttemberg",
+      "_split_note": "Germany-as-a-whole PBF (4.7 GB) tripped a Planetiler 0.8.4 lazy-reader bug for files >4 GB and would also exceed the 2 GB GitHub Release asset cap on output. Split into the 16 federal states (Bundesländer) per Geofabrik's pre-publish; same pattern as the France split.",
+      "bbox": [7.5, 47.5, 10.5, 49.8]
+    },
+    {
+      "id": "de-bayern",
+      "name": "Germany · Bayern (Bavaria)",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/bayern",
+      "bbox": [9.0, 47.3, 13.8, 50.6]
+    },
+    {
+      "id": "de-berlin",
+      "name": "Germany · Berlin",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/berlin",
+      "bbox": [13.0, 52.3, 13.8, 52.7]
+    },
+    {
+      "id": "de-brandenburg",
+      "name": "Germany · Brandenburg",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/brandenburg",
+      "bbox": [11.3, 51.4, 14.8, 53.6]
+    },
+    {
+      "id": "de-bremen",
+      "name": "Germany · Bremen",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/bremen",
+      "bbox": [8.5, 53.0, 8.99, 53.6]
+    },
+    {
+      "id": "de-hamburg",
+      "name": "Germany · Hamburg",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/hamburg",
+      "bbox": [8.42, 53.4, 10.32, 53.74]
+    },
+    {
+      "id": "de-hessen",
+      "name": "Germany · Hessen",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/hessen",
+      "bbox": [7.8, 49.4, 10.2, 51.7]
+    },
+    {
+      "id": "de-mecklenburg-vorpommern",
+      "name": "Germany · Mecklenburg-Vorpommern",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/mecklenburg-vorpommern",
+      "bbox": [10.6, 53.1, 14.4, 54.7]
+    },
+    {
+      "id": "de-niedersachsen",
+      "name": "Germany · Niedersachsen (Lower Saxony)",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/niedersachsen",
+      "bbox": [6.6, 51.3, 11.6, 53.9]
+    },
+    {
+      "id": "de-nordrhein-westfalen",
+      "name": "Germany · Nordrhein-Westfalen (NRW)",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/nordrhein-westfalen",
+      "bbox": [5.86, 50.32, 9.46, 52.53]
+    },
+    {
+      "id": "de-rheinland-pfalz",
+      "name": "Germany · Rheinland-Pfalz",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/rheinland-pfalz",
+      "bbox": [6.1, 48.97, 8.5, 50.94]
+    },
+    {
+      "id": "de-saarland",
+      "name": "Germany · Saarland",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/saarland",
+      "bbox": [6.36, 49.11, 7.41, 49.64]
+    },
+    {
+      "id": "de-sachsen",
+      "name": "Germany · Sachsen (Saxony)",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/sachsen",
+      "bbox": [11.9, 50.2, 15.0, 51.7]
+    },
+    {
+      "id": "de-sachsen-anhalt",
+      "name": "Germany · Sachsen-Anhalt",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/sachsen-anhalt",
+      "bbox": [10.6, 50.9, 13.2, 53.0]
+    },
+    {
+      "id": "de-schleswig-holstein",
+      "name": "Germany · Schleswig-Holstein",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/schleswig-holstein",
+      "bbox": [7.9, 53.4, 11.3, 54.9]
+    },
+    {
+      "id": "de-thueringen",
+      "name": "Germany · Thüringen (Thuringia)",
+      "type": "state",
+      "country": "DE",
+      "geofabrikArea": "europe/germany/thueringen",
+      "bbox": [9.9, 50.2, 12.7, 51.6]
     },
     {
       "id": "dk",
