@@ -1969,15 +1969,30 @@
       ]
     },
     {
-      "id": "gf",
-      "name": "Guyana, Suriname, French Guiana",
+      "id": "gy",
+      "name": "Guyana",
       "type": "country",
-      "geofabrikArea": "south-america/guyana-suriname-french-guiana",
+      "iso": "GY",
+      "geofabrikArea": "south-america/guyana",
+      "_split_note": "Was part of the combined `gf` (Guyana-Suriname-French-Guiana) entry. Geofabrik deprecated the combined path and now publishes Guyana, Suriname, and (via france/guyane) French Guiana separately. French Guiana is already covered by fr-guyane.",
       "bbox": [
         -61.41,
         1.18,
-        -51.63,
+        -56.48,
         8.55
+      ]
+    },
+    {
+      "id": "sr",
+      "name": "Suriname",
+      "type": "country",
+      "iso": "SR",
+      "geofabrikArea": "south-america/suriname",
+      "bbox": [
+        -58.07,
+        1.83,
+        -53.99,
+        6.0
       ]
     },
     {
