@@ -95,16 +95,14 @@ java "-Xmx${XMX}" -jar "${PLANETILER_JAR}" \
     --force \
     --only-layers=water,waterway,transportation,transportation_name,boundary,place,park,water_name \
     --maxzoom=14 \
-    --nodemap-type=sortedtable \
     --tmpdir="${WORK_DIR}" \
     --download-dir="${CACHE_DIR}/download"
-# `--nodemap-type=sortedtable`: node-location index on disk uses
-# ~50 % less space than the default `array` type. Germany has 433M
-# nodes; default eats ~7 GB just for the node map and blows the
-# runner's free space mid-pass1 with
-# `Channel not open for writing - cannot extend file to required size`.
-# Sortedtable trades ~10-15 % CPU for the disk savings - well worth
-# it inside a 90-min runner budget.
+# Note: we previously passed --nodemap-type=sortedtable thinking the
+# `Channel not open for writing - cannot extend file to required size`
+# error on Germany was disk-pressure. It wasn't (runner has 121 GB
+# free). Root cause was kernel `vm.max_map_count` exhaustion - the
+# workflow now sysctls it up to 1 M before this script runs. Default
+# (`array`) nodemap is faster and works fine with plenty of disk.
 # `--http_retries=4` / `--http_timeout=300`: the natural-earth and
 # water-polygons mirrors (osmdata.openstreetmap.de, dev.maptiler.download)
 # occasionally take >30s for the initial HEAD/size request, which made

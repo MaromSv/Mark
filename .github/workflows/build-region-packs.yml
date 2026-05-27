@@ -126,24 +126,16 @@ jobs:
       - name: Show available disk
         run: df -h
 
-      - name: Relocate build cache to /mnt (extra ~70 GB)
-        # GitHub-hosted runners mount a separate scratch volume at /mnt
-        # with ~75 GB free, separate from the ~30 GB root disk. Default
-        # ownership is root, so we chown a subdir and symlink the build
-        # cache into it. Net effect: every PBF download, Planetiler temp
-        # file, and final tarball lives on the big disk - Germany/France
-        # build with massive headroom instead of crashing osm_pass1 with
-        # "cannot extend file to required size".
+      - name: Bump vm.max_map_count for mmap-heavy Planetiler
+        # The "Channel not open for writing - cannot extend file to
+        # required size" error we hit on Germany was NOT a disk-space
+        # problem (the runner has 121 GB free). It's the kernel's
+        # default `vm.max_map_count` limit (65530) being exhausted by
+        # Planetiler's many small mmap regions during osm_pass1 on a
+        # high-node-count PBF. Bump it to 1M so big countries fit.
         run: |
-          set -euo pipefail
-          sudo mkdir -p /mnt/build-cache
-          sudo chown "$USER" /mnt/build-cache
-          mkdir -p scripts/build-pack
-          # build.sh writes to scripts/build-pack/.cache/; symlink it
-          # to the big volume so no script edits are needed.
-          ln -sfn /mnt/build-cache scripts/build-pack/.cache
-          echo "Build cache now points at:" && readlink scripts/build-pack/.cache
-          df -h /mnt
+          sudo sysctl -w vm.max_map_count=1048576
+          echo "vm.max_map_count is now:" && cat /proc/sys/vm/max_map_count
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
