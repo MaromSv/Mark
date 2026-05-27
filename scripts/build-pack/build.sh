@@ -104,12 +104,14 @@ echo
 echo "[1/5] Vector tiles → ${PACK_DIR}/tiles.mbtiles"
 bash "${SCRIPT_DIR}/planetiler-build.sh" "${GEOFABRIK_AREA}" "${PACK_DIR}/tiles.mbtiles"
 
-# Planetiler caches the source PBF under .cache/download/<area>.osm.pbf —
-# reuse it for BRouter and POI extraction so we don't refetch.
-SOURCE_PBF="${CACHE_DIR}/download/${GEOFABRIK_AREA}.osm.pbf"
+# Planetiler caches the source PBF at .cache/download/<leaf>.osm.pbf
+# (the leaf component of the Geofabrik path) — see planetiler-build.sh
+# which now passes that as `--osm_path`. Reuse it for BRouter and POI
+# extraction so we don't refetch the 100MB-5GB blob.
+AREA_LEAF="${GEOFABRIK_AREA##*/}"
+SOURCE_PBF="${CACHE_DIR}/download/${AREA_LEAF}.osm.pbf"
 if [[ ! -f "${SOURCE_PBF}" ]]; then
-    # Older Planetiler builds named the file differently; fall back to the
-    # first .osm.pbf we find in the download cache.
+    # Fallback for older script versions that named the file differently.
     SOURCE_PBF="$(find "${CACHE_DIR}/download" -name '*.osm.pbf' | head -n1 || true)"
     [[ -n "${SOURCE_PBF}" ]] || {
         echo "ERROR: couldn't locate cached PBF after Planetiler run" >&2
